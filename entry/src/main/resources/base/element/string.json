@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "居家守护入口模块"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "居家守护"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "居家守护"
+    }
+  ]
+}

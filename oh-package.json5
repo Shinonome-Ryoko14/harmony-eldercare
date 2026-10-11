@@ -1,0 +1,13 @@
+{
+  "modelVersion": "5.0.0",
+  "name": "elder_care",
+  "version": "1.0.0",
+  "description": "老人居家安全守护 APP",
+  "main": "",
+  "author": "",
+  "license": "",
+  "dependencies": {},
+  "devDependencies": {
+    "@ohos/hypium": "1.0.19"
+  }
+}

@@ -1,0 +1,39 @@
+# OpenHarmony / DevEco Studio 构建产物与缓存
+/oh_modules
+/entry/oh_modules
+/node_modules
+/entry/node_modules
+**/build
+/.hvigor
+/.appanalyzer
+/local.properties
+
+# IDE
+/.idea
+/entry/.idea
+*.iml
+/.vscode
+
+# 原生构建中间产物
+/.cxx
+/.clangd
+/.clang-format
+/.clang-tidy
+**/.test
+
+# 日志与临时文件
+*.log
+*.tmp
+.DS_Store
+
+# 签名文件（切勿提交）
+*.p12
+*.cer
+*.p7b
+/entry/*.p12
+/entry/*.cer
+
+# 打包产物
+*.hap
+*.hsp
+*.app
