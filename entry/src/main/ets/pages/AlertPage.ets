@@ -1,4 +1,3 @@
-import { promptAction } from '@kit.ArkUI';
 import { AlertRecord } from '../common/Types';
 import { DateUtil } from '../common/Protocol';
 import { Theme } from '../common/Theme';
@@ -66,6 +65,14 @@ export struct AlertPage {
     }
   }
 
+  private toast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message });
+    } catch (err) {
+      console.error(`提示弹出失败: ${JSON.stringify(err)}`);
+    }
+  }
+
   private levelColor(level: number): string {
     if (level >= 2) {
       return Theme.DANGER;
@@ -86,7 +93,7 @@ export struct AlertPage {
   private async submitHandle(): Promise<void> {
     let result: string = this.resultText.trim();
     if (result.length === 0) {
-      promptAction.showToast({ message: '请填写或选择处置结果' });
+      this.toast('请填写或选择处置结果');
       return;
     }
     let operator: string = this.operatorText.trim();
@@ -96,11 +103,11 @@ export struct AlertPage {
     try {
       await Repository.handleAlert(this.activeAlert, result, operator);
       this.showDialog = false;
-      promptAction.showToast({ message: '处置结果已保存' });
+      this.toast('处置结果已保存');
       await this.reload();
     } catch (e) {
       console.error(`保存处置失败: ${JSON.stringify(e)}`);
-      promptAction.showToast({ message: '保存失败，请重试' });
+      this.toast('保存失败，请重试');
     }
   }
 
@@ -109,8 +116,11 @@ export struct AlertPage {
     Column() {
       Row() {
         Row() {
-          Circle({ width: 8, height: 8 })
-            .fill(this.levelColor(a.level))
+          Column()
+            .width(8)
+            .height(8)
+            .borderRadius(4)
+            .backgroundColor(this.levelColor(a.level))
           Text(a.type)
             .fontSize(15)
             .fontWeight(FontWeight.Medium)

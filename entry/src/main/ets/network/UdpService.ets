@@ -38,13 +38,18 @@ export class UdpService {
       return;
     }
     let udp: socket.UDPSocket = socket.constructUDPSocketInstance();
-    let bindOptions: socket.NetAddress = {
-      address: Constants.BIND_ADDR,
-      port: Constants.UDP_PORT
-    };
-    await udp.bind(bindOptions);
-    let extra: socket.UDPExtraOptions = { broadcast: true };
-    await udp.setExtraOptions(extra);
+    try {
+      let bindOptions: socket.NetAddress = {
+        address: Constants.BIND_ADDR,
+        port: Constants.UDP_PORT
+      };
+      await udp.bind(bindOptions);
+      let extra: socket.UDPExtraOptions = { broadcast: true };
+      await udp.setExtraOptions(extra);
+    } catch (err) {
+      console.error(`UDP 绑定失败: ${JSON.stringify(err)}`);
+      throw err as Error;
+    }
     udp.on('message', (info: socket.SocketMessageInfo) => {
       this.onMessage(info);
     });
@@ -124,7 +129,7 @@ export class UdpService {
 
   private decode(buffer: ArrayBuffer): string {
     let decoder: util.TextDecoder = util.TextDecoder.create('utf-8', { ignoreBOM: true });
-    let ret: string = decoder.decodeWithStream(new Uint8Array(buffer), { stream: false });
+    let ret: string = decoder.decodeToString(new Uint8Array(buffer), { stream: false });
     return ret;
   }
 

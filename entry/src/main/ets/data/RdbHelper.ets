@@ -40,11 +40,16 @@ export class RdbHelper {
     if (RdbHelper.store !== null) {
       return;
     }
-    let store: relationalStore.RdbStore = await relationalStore.getRdbStore(context, STORE_CONFIG);
-    await store.executeSql(SQL_CREATE_ACTIVITY);
-    await store.executeSql(SQL_CREATE_ALERTS);
-    await store.executeSql(SQL_CREATE_LOGS);
-    RdbHelper.store = store;
+    try {
+      let store: relationalStore.RdbStore = await relationalStore.getRdbStore(context, STORE_CONFIG);
+      await store.executeSql(SQL_CREATE_ACTIVITY);
+      await store.executeSql(SQL_CREATE_ALERTS);
+      await store.executeSql(SQL_CREATE_LOGS);
+      RdbHelper.store = store;
+    } catch (err) {
+      console.error(`数据库初始化失败: ${JSON.stringify(err)}`);
+      throw err as Error;
+    }
   }
 
   static get(): relationalStore.RdbStore {

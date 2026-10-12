@@ -12,132 +12,172 @@ export class Repository {
   // ---------------- 写入 ----------------
 
   static async addActivity(ip: string, ts: number, count: number): Promise<void> {
-    let bucket: relationalStore.ValuesBucket = { 'ip': ip, 'ts': ts, 'count': count };
-    await RdbHelper.get().insert('activity', bucket);
+    try {
+      let bucket: relationalStore.ValuesBucket = { 'ip': ip, 'ts': ts, 'count': count };
+      await RdbHelper.get().insert('activity', bucket);
+    } catch (err) {
+      console.error(`写入活动记录失败: ${JSON.stringify(err)}`);
+      throw err as Error;
+    }
   }
 
   static async addAlert(ip: string, draft: AlertDraft, ts: number): Promise<number> {
-    let bucket: relationalStore.ValuesBucket = {
-      'ip': ip,
-      'ts': ts,
-      'type': draft.type,
-      'level': draft.level,
-      'message': draft.message,
-      'handled': 0,
-      'handle_result': '',
-      'handle_ts': 0
-    };
-    return await RdbHelper.get().insert('alerts', bucket);
+    try {
+      let bucket: relationalStore.ValuesBucket = {
+        'ip': ip,
+        'ts': ts,
+        'type': draft.type,
+        'level': draft.level,
+        'message': draft.message,
+        'handled': 0,
+        'handle_result': '',
+        'handle_ts': 0
+      };
+      return await RdbHelper.get().insert('alerts', bucket);
+    } catch (err) {
+      console.error(`写入告警失败: ${JSON.stringify(err)}`);
+      throw err as Error;
+    }
   }
 
   /** 处置告警：更新告警状态并写入安全日志 */
   static async handleAlert(alert: AlertRecord, result: string, operator: string): Promise<void> {
-    let now: number = Date.now();
-    let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('alerts');
-    pred.equalTo('id', alert.id);
-    let values: relationalStore.ValuesBucket = {
-      'handled': 1,
-      'handle_result': result,
-      'handle_ts': now
-    };
-    await RdbHelper.get().update(values, pred);
+    try {
+      let now: number = Date.now();
+      let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('alerts');
+      pred.equalTo('id', alert.id);
+      let values: relationalStore.ValuesBucket = {
+        'handled': 1,
+        'handle_result': result,
+        'handle_ts': now
+      };
+      await RdbHelper.get().update(values, pred);
 
-    let log: relationalStore.ValuesBucket = {
-      'alert_id': alert.id,
-      'ip': alert.ip,
-      'alert_type': alert.type,
-      'result': result,
-      'operator': operator,
-      'ts': now
-    };
-    await RdbHelper.get().insert('safety_logs', log);
+      let log: relationalStore.ValuesBucket = {
+        'alert_id': alert.id,
+        'ip': alert.ip,
+        'alert_type': alert.type,
+        'result': result,
+        'operator': operator,
+        'ts': now
+      };
+      await RdbHelper.get().insert('safety_logs', log);
+    } catch (err) {
+      console.error(`处置告警失败: ${JSON.stringify(err)}`);
+      throw err as Error;
+    }
   }
 
   // ---------------- 查询 ----------------
 
   static async queryAlerts(ip: string, limit: number): Promise<AlertRecord[]> {
-    let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('alerts');
-    if (ip.length > 0) {
-      pred.equalTo('ip', ip);
-    }
-    pred.orderByDesc('ts');
-    pred.limitAs(limit);
-    let rs: relationalStore.ResultSet = await RdbHelper.get().query(pred);
     let list: AlertRecord[] = [];
-    while (rs.goToNextRow()) {
-      list.push(Repository.readAlert(rs));
+    try {
+      let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('alerts');
+      if (ip.length > 0) {
+        pred.equalTo('ip', ip);
+      }
+      pred.orderByDesc('ts');
+      pred.limitAs(limit);
+      let rs: relationalStore.ResultSet = await RdbHelper.get().query(pred);
+      while (rs.goToNextRow()) {
+        list.push(Repository.readAlert(rs));
+      }
+      rs.close();
+    } catch (err) {
+      console.error(`查询告警失败: ${JSON.stringify(err)}`);
+      throw err as Error;
     }
-    rs.close();
     return list;
   }
 
   static async queryPendingAlerts(): Promise<AlertRecord[]> {
-    let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('alerts');
-    pred.equalTo('handled', 0);
-    pred.orderByDesc('ts');
-    let rs: relationalStore.ResultSet = await RdbHelper.get().query(pred);
     let list: AlertRecord[] = [];
-    while (rs.goToNextRow()) {
-      list.push(Repository.readAlert(rs));
+    try {
+      let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('alerts');
+      pred.equalTo('handled', 0);
+      pred.orderByDesc('ts');
+      let rs: relationalStore.ResultSet = await RdbHelper.get().query(pred);
+      while (rs.goToNextRow()) {
+        list.push(Repository.readAlert(rs));
+      }
+      rs.close();
+    } catch (err) {
+      console.error(`查询待处置告警失败: ${JSON.stringify(err)}`);
+      throw err as Error;
     }
-    rs.close();
     return list;
   }
 
   static async queryLogs(limit: number): Promise<SafetyLog[]> {
-    let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('safety_logs');
-    pred.orderByDesc('ts');
-    pred.limitAs(limit);
-    let rs: relationalStore.ResultSet = await RdbHelper.get().query(pred);
     let list: SafetyLog[] = [];
-    while (rs.goToNextRow()) {
-      list.push({
-        id: rs.getLong(rs.getColumnIndex('id')),
-        alertId: rs.getLong(rs.getColumnIndex('alert_id')),
-        ip: rs.getString(rs.getColumnIndex('ip')),
-        alertType: rs.getString(rs.getColumnIndex('alert_type')),
-        result: rs.getString(rs.getColumnIndex('result')),
-        operator: rs.getString(rs.getColumnIndex('operator')),
-        ts: rs.getLong(rs.getColumnIndex('ts'))
-      });
+    try {
+      let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('safety_logs');
+      pred.orderByDesc('ts');
+      pred.limitAs(limit);
+      let rs: relationalStore.ResultSet = await RdbHelper.get().query(pred);
+      while (rs.goToNextRow()) {
+        list.push({
+          id: rs.getLong(rs.getColumnIndex('id')),
+          alertId: rs.getLong(rs.getColumnIndex('alert_id')),
+          ip: rs.getString(rs.getColumnIndex('ip')),
+          alertType: rs.getString(rs.getColumnIndex('alert_type')),
+          result: rs.getString(rs.getColumnIndex('result')),
+          operator: rs.getString(rs.getColumnIndex('operator')),
+          ts: rs.getLong(rs.getColumnIndex('ts'))
+        });
+      }
+      rs.close();
+    } catch (err) {
+      console.error(`查询安全日志失败: ${JSON.stringify(err)}`);
+      throw err as Error;
     }
-    rs.close();
     return list;
   }
 
   private static readAlert(rs: relationalStore.ResultSet): AlertRecord {
-    return {
-      id: rs.getLong(rs.getColumnIndex('id')),
-      ip: rs.getString(rs.getColumnIndex('ip')),
-      ts: rs.getLong(rs.getColumnIndex('ts')),
-      type: rs.getString(rs.getColumnIndex('type')),
-      level: rs.getLong(rs.getColumnIndex('level')),
-      message: rs.getString(rs.getColumnIndex('message')),
-      handled: rs.getLong(rs.getColumnIndex('handled')),
-      handleResult: rs.getString(rs.getColumnIndex('handle_result')),
-      handleTs: rs.getLong(rs.getColumnIndex('handle_ts'))
-    };
-  }
-
-  private static async queryActivityRange(ip: string, fromTs: number, toTs: number): Promise<ActivityRecord[]> {
-    let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('activity');
-    if (ip.length > 0) {
-      pred.equalTo('ip', ip);
-    }
-    pred.greaterThanOrEqualTo('ts', fromTs);
-    pred.lessThan('ts', toTs);
-    pred.orderByAsc('ts');
-    let rs: relationalStore.ResultSet = await RdbHelper.get().query(pred);
-    let list: ActivityRecord[] = [];
-    while (rs.goToNextRow()) {
-      list.push({
+    try {
+      return {
         id: rs.getLong(rs.getColumnIndex('id')),
         ip: rs.getString(rs.getColumnIndex('ip')),
         ts: rs.getLong(rs.getColumnIndex('ts')),
-        count: rs.getLong(rs.getColumnIndex('count'))
-      });
+        type: rs.getString(rs.getColumnIndex('type')),
+        level: rs.getLong(rs.getColumnIndex('level')),
+        message: rs.getString(rs.getColumnIndex('message')),
+        handled: rs.getLong(rs.getColumnIndex('handled')),
+        handleResult: rs.getString(rs.getColumnIndex('handle_result')),
+        handleTs: rs.getLong(rs.getColumnIndex('handle_ts'))
+      };
+    } catch (err) {
+      console.error(`读取告警行失败: ${JSON.stringify(err)}`);
+      throw err as Error;
     }
-    rs.close();
+  }
+
+  private static async queryActivityRange(ip: string, fromTs: number, toTs: number): Promise<ActivityRecord[]> {
+    let list: ActivityRecord[] = [];
+    try {
+      let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('activity');
+      if (ip.length > 0) {
+        pred.equalTo('ip', ip);
+      }
+      pred.greaterThanOrEqualTo('ts', fromTs);
+      pred.lessThan('ts', toTs);
+      pred.orderByAsc('ts');
+      let rs: relationalStore.ResultSet = await RdbHelper.get().query(pred);
+      while (rs.goToNextRow()) {
+        list.push({
+          id: rs.getLong(rs.getColumnIndex('id')),
+          ip: rs.getString(rs.getColumnIndex('ip')),
+          ts: rs.getLong(rs.getColumnIndex('ts')),
+          count: rs.getLong(rs.getColumnIndex('count'))
+        });
+      }
+      rs.close();
+    } catch (err) {
+      console.error(`查询活动区间失败: ${JSON.stringify(err)}`);
+      throw err as Error;
+    }
     return list;
   }
 

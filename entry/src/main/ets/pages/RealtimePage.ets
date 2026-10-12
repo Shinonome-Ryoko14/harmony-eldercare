@@ -1,4 +1,3 @@
-import { promptAction } from '@kit.ArkUI';
 import { DeviceData } from '../common/Types';
 import { Constants } from '../common/Constants';
 import { DateUtil } from '../common/Protocol';
@@ -56,6 +55,14 @@ export struct RealtimePage {
     }
   }
 
+  private toast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message });
+    } catch (err) {
+      console.error(`提示弹出失败: ${JSON.stringify(err)}`);
+    }
+  }
+
   private tempAccent(): string {
     if (this.current.temp > Constants.TEMP_MAX || (this.current.temp < Constants.TEMP_MIN && this.current.temp !== 0)) {
       return Theme.WARN;
@@ -100,8 +107,11 @@ export struct RealtimePage {
           .layoutWeight(1)
 
           Row() {
-            Circle({ width: 8, height: 8 })
-              .fill(this.current.online ? Theme.OK : Theme.SUB)
+            Column()
+              .width(8)
+              .height(8)
+              .borderRadius(4)
+              .backgroundColor(this.current.online ? Theme.OK : Theme.SUB)
             Text(this.statusText())
               .fontSize(13)
               .fontColor(this.current.online ? Theme.OK : Theme.SUB)
@@ -141,11 +151,11 @@ export struct RealtimePage {
             .onClick(() => {
               let ip: string = this.inputIp.trim();
               if (ip.length === 0) {
-                promptAction.showToast({ message: '请输入设备IP' });
+                this.toast('请输入设备IP');
                 return;
               }
               UdpService.get().probeIp(ip);
-              promptAction.showToast({ message: `已向 ${ip} 发送探测包` });
+              this.toast(`已向 ${ip} 发送探测包`);
             })
         }
         .width('100%')
