@@ -1,4 +1,4 @@
-import { relationalStore } from '@ohos.data.relationalStore';
+import relationalStore from '@ohos.data.relationalStore';
 import { RdbHelper } from './RdbHelper';
 import { AlertDraft } from './RuleEngine';
 import { ActivityRecord, AlertRecord, DayStat, HourStat, ReportData, SafetyLog } from '../common/Types';
@@ -65,7 +65,7 @@ export class Repository {
     let rs: relationalStore.ResultSet = await RdbHelper.get().query(pred);
     let list: AlertRecord[] = [];
     while (rs.goToNextRow()) {
-      list.push(this.readAlert(rs));
+      list.push(Repository.readAlert(rs));
     }
     rs.close();
     return list;
@@ -78,7 +78,7 @@ export class Repository {
     let rs: relationalStore.ResultSet = await RdbHelper.get().query(pred);
     let list: AlertRecord[] = [];
     while (rs.goToNextRow()) {
-      list.push(this.readAlert(rs));
+      list.push(Repository.readAlert(rs));
     }
     rs.close();
     return list;
@@ -149,8 +149,8 @@ export class Repository {
     let todayStart: number = DateUtil.startOfDay(now);
     let yesterdayStart: number = todayStart - 86400000;
 
-    let todayRows: ActivityRecord[] = await this.queryActivityRange(ip, todayStart, now + 1000);
-    let yesterdayRows: ActivityRecord[] = await this.queryActivityRange(ip, yesterdayStart, todayStart);
+    let todayRows: ActivityRecord[] = await Repository.queryActivityRange(ip, todayStart, now + 1000);
+    let yesterdayRows: ActivityRecord[] = await Repository.queryActivityRange(ip, yesterdayStart, todayStart);
 
     let today: number = 0;
     let hourly: HourStat[] = [];
@@ -180,7 +180,7 @@ export class Repository {
   static async dailyTrend(ip: string, days: number): Promise<DayStat[]> {
     let todayStart: number = DateUtil.startOfDay(Date.now());
     let fromTs: number = todayStart - (days - 1) * 86400000;
-    let rows: ActivityRecord[] = await this.queryActivityRange(ip, fromTs, todayStart + 86400000);
+    let rows: ActivityRecord[] = await Repository.queryActivityRange(ip, fromTs, todayStart + 86400000);
 
     let list: DayStat[] = [];
     let index: Map<string, number> = new Map<string, number>();

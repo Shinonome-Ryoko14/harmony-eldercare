@@ -1,11 +1,11 @@
-import { socket } from '@ohos.net.socket';
-import { util } from '@ohos.util';
+import socket from '@ohos.net.socket';
+import util from '@ohos.util';
 import { BusinessError } from '@ohos.base';
 import { Constants } from '../common/Constants';
 import { Protocol } from '../common/Protocol';
 import { DeviceData } from '../common/Types';
 import { AppStore } from '../store/AppStore';
-import { Repository } from './Repository';
+import { Repository } from '../data/Repository';
 import { AlertDraft, RuleEngine, RuleResult } from '../data/RuleEngine';
 
 /**
@@ -127,7 +127,7 @@ export class UdpService {
   private onMessage(info: socket.SocketMessageInfo): void {
     let ip: string = info.remoteInfo.address;
     let text: string = this.decode(info.message);
-    let data: DeviceData | null = Protocol.parse(ip, text);
+    const data: DeviceData | null = Protocol.parse(ip, text);
     if (data === null) {
       return;
     }

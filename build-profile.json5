@@ -5,7 +5,8 @@
       {
         "name": "default",
         "compatibleSdkVersion": "5.0.0(12)",
-        "runtimeOS": "OpenHarmony",
+        "targetSdkVersion": "5.0.0(12)",
+        "runtimeOS": "HarmonyOS",
         "buildOption": {
           "strictMode": {
             "caseSensitiveCheck": true,

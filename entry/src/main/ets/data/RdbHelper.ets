@@ -1,4 +1,4 @@
-import { relationalStore } from '@ohos.data.relationalStore';
+import relationalStore from '@ohos.data.relationalStore';
 import { common } from '@kit.AbilityKit';
 
 const STORE_CONFIG: relationalStore.StoreConfig = {
