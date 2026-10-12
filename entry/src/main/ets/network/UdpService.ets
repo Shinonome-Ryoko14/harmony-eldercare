@@ -38,7 +38,7 @@ export class UdpService {
       return;
     }
     let udp: socket.UDPSocket = socket.constructUDPSocketInstance();
-    let bindOptions: socket.UDPBindOptions = {
+    let bindOptions: socket.NetAddress = {
       address: Constants.BIND_ADDR,
       port: Constants.UDP_PORT
     };
@@ -91,8 +91,10 @@ export class UdpService {
     }
     let options: socket.UDPSendOptions = {
       data: Constants.PROBE_PACKET,
-      address: Constants.BROADCAST_ADDR,
-      port: Constants.UDP_PORT
+      address: {
+        address: Constants.BROADCAST_ADDR,
+        port: Constants.UDP_PORT
+      }
     };
     try {
       await this.udp.send(options);
@@ -108,8 +110,10 @@ export class UdpService {
     }
     let options: socket.UDPSendOptions = {
       data: Constants.PROBE_PACKET,
-      address: ip,
-      port: Constants.UDP_PORT
+      address: {
+        address: ip,
+        port: Constants.UDP_PORT
+      }
     };
     try {
       await this.udp.send(options);
