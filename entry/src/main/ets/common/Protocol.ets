@@ -1,10 +1,12 @@
 import { Constants } from './Constants';
-import { DeviceData, LatestRecord } from './Types';
+import { LatestRecord } from './Types';
 
 /**
- * 报文解析工具。硬件 JSON 形如：
- * {"temp":26.5,"humi":34,"magnet":0,"pulse":0,"total":0,"sos":0}
- * 通过 Constants.FIELD_KEYS 做字段映射，字段变动只改配置。
+ * 服务端报文解析工具。单条记录形如：
+ * {"id":168,"device_no":0,"temp":25.4,"humi":52.0,"radar_presence":0,
+ *  "radar_motion":0,"door1":0,"sos":0,"alarm":0,"alarm_type":"",
+ *  "created_at":"2026-10-13 06:27:57"}
+ * 通过 Constants.HTTP_FIELDS 做字段映射，字段变动只改配置。
  */
 export class Protocol {
 
@@ -50,12 +52,7 @@ export class Protocol {
     return def;
   }
 
-  /**
-   * 解析服务端单条记录（latest 或 history 元素）。
-   * 形如 {"id":168,"device_no":0,"temp":25.4,"humi":52.0,
-   *       "radar_presence":0,"radar_motion":0,"door1":0,"sos":0,
-   *       "alarm":0,"alarm_type":"","created_at":"2026-10-13 06:27:57"}
-   */
+  /** 解析服务端单条记录（latest 或 history 元素） */
   static parseRecord(rec: Record<string, Object>): LatestRecord {
     let f: Record<string, string> = Constants.HTTP_FIELDS;
     let created: string = Protocol.strOf(rec, f['createdAt'], '');
@@ -76,6 +73,7 @@ export class Protocol {
 
   /**
    * 解析 "2026-10-13 06:27:57"（或 ISO 的 "...T..."）为时间戳(ms)。
+   * 服务端返回的是服务器本地时间，与手机本地时区一致，故按本地时间解析。
    * 不用 new Date(str)，避免各引擎对非 ISO 格式解析不一致。
    */
   static parseDateTime(s: string): number {
@@ -99,43 +97,6 @@ export class Protocol {
     }
     let d: Date = new Date(year, month - 1, day, hour, min, sec);
     return d.getTime();
-  }
-
-  /**
-   * 解析 UDP 文本为设备数据（旧协议，保留以兼容硬件 UDP 上报）。
-   * @param ip 来源 IP
-   * @param text 报文内容
-   */
-  static parse(ip: string, text: string): DeviceData | null {
-    let trimmed: string = text.trim();
-    if (trimmed.length === 0 || trimmed.charAt(0) !== '{') {
-      return null;
-    }
-    let rec: Record<string, Object>;
-    try {
-      rec = JSON.parse(trimmed) as Record<string, Object>;
-    } catch (e) {
-      return null;
-    }
-    let keys: Record<string, string> = Constants.FIELD_KEYS;
-    let now: number = Date.now();
-    let pulse: number = Protocol.numOf(rec, keys['pulse'], 0);
-    let data: DeviceData = {
-      ip: ip,
-      deviceNo: 0,
-      temp: Protocol.numOf(rec, keys['temp'], 0),
-      humi: Protocol.numOf(rec, keys['humi'], 0),
-      door: Protocol.numOf(rec, keys['magnet'], 0),
-      radarPresence: pulse,
-      radarMotion: pulse,
-      sos: Protocol.numOf(rec, keys['sos'], 0),
-      alarm: 0,
-      alarmType: '',
-      lastSeen: now,
-      lastActive: 0,
-      online: true
-    };
-    return data;
   }
 }
 

@@ -6,14 +6,15 @@ import { DateUtil } from '../common/Protocol';
 
 /**
  * 数据仓库：活动、告警、安全日志的读写与统计聚合。
+ * 所有表统一以 device_no（number）标识设备。
  */
 export class Repository {
 
   // ---------------- 写入 ----------------
 
-  static async addActivity(ip: string, ts: number, count: number): Promise<void> {
+  static async addActivity(deviceNo: number, ts: number, count: number): Promise<void> {
     try {
-      let bucket: relationalStore.ValuesBucket = { 'ip': ip, 'ts': ts, 'count': count };
+      let bucket: relationalStore.ValuesBucket = { 'device_no': deviceNo, 'ts': ts, 'count': count };
       await RdbHelper.get().insert('activity', bucket);
     } catch (err) {
       console.error(`写入活动记录失败: ${JSON.stringify(err)}`);
@@ -67,41 +68,34 @@ export class Repository {
     return maxId;
   }
 
-  /** 本地累积的最近采样（服务端不可用时也可展示历史） */
-  static async querySamples(deviceNo: number, limit: number): Promise<LatestRecord[]> {
-    let list: LatestRecord[] = [];
+  /** 最近一次检测到雷达“存在/运动”的采样时间戳(ms)，无记录返回 0 */
+  static async lastActiveTs(deviceNo: number): Promise<number> {
+    let ts: number = 0;
     try {
       let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('samples');
       pred.equalTo('device_no', deviceNo);
+      pred.beginWrap()
+        .equalTo('radar_presence', 1)
+        .or()
+        .equalTo('radar_motion', 1)
+        .endWrap();
       pred.orderByDesc('ts');
-      pred.limitAs(limit);
+      pred.limitAs(1);
       let rs: relationalStore.ResultSet = await RdbHelper.get().query(pred);
-      while (rs.goToNextRow()) {
-        list.push({
-          id: rs.getLong(rs.getColumnIndex('remote_id')),
-          deviceNo: rs.getLong(rs.getColumnIndex('device_no')),
-          temp: rs.getDouble(rs.getColumnIndex('temp')),
-          humi: rs.getDouble(rs.getColumnIndex('humi')),
-          radarPresence: rs.getLong(rs.getColumnIndex('radar_presence')),
-          radarMotion: rs.getLong(rs.getColumnIndex('radar_motion')),
-          door: rs.getLong(rs.getColumnIndex('door1')),
-          sos: rs.getLong(rs.getColumnIndex('sos')),
-          alarm: rs.getLong(rs.getColumnIndex('alarm')),
-          alarmType: rs.getString(rs.getColumnIndex('alarm_type')),
-          ts: rs.getLong(rs.getColumnIndex('ts'))
-        });
+      if (rs.goToNextRow()) {
+        ts = rs.getLong(rs.getColumnIndex('ts'));
       }
       rs.close();
     } catch (err) {
-      console.error(`查询采样失败: ${JSON.stringify(err)}`);
+      console.error(`查询最近活动时间失败: ${JSON.stringify(err)}`);
     }
-    return list;
+    return ts;
   }
 
-  static async addAlert(ip: string, draft: AlertDraft, ts: number): Promise<number> {
+  static async addAlert(deviceNo: number, draft: AlertDraft, ts: number): Promise<number> {
     try {
       let bucket: relationalStore.ValuesBucket = {
-        'ip': ip,
+        'device_no': deviceNo,
         'ts': ts,
         'type': draft.type,
         'level': draft.level,
@@ -132,7 +126,7 @@ export class Repository {
 
       let log: relationalStore.ValuesBucket = {
         'alert_id': alert.id,
-        'ip': alert.ip,
+        'device_no': alert.deviceNo,
         'alert_type': alert.type,
         'result': result,
         'operator': operator,
@@ -147,12 +141,13 @@ export class Repository {
 
   // ---------------- 查询 ----------------
 
-  static async queryAlerts(ip: string, limit: number): Promise<AlertRecord[]> {
+  /** deviceNo < 0 表示查询全部设备 */
+  static async queryAlerts(deviceNo: number, limit: number): Promise<AlertRecord[]> {
     let list: AlertRecord[] = [];
     try {
       let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('alerts');
-      if (ip.length > 0) {
-        pred.equalTo('ip', ip);
+      if (deviceNo >= 0) {
+        pred.equalTo('device_no', deviceNo);
       }
       pred.orderByDesc('ts');
       pred.limitAs(limit);
@@ -163,24 +158,6 @@ export class Repository {
       rs.close();
     } catch (err) {
       console.error(`查询告警失败: ${JSON.stringify(err)}`);
-      throw err as Error;
-    }
-    return list;
-  }
-
-  static async queryPendingAlerts(): Promise<AlertRecord[]> {
-    let list: AlertRecord[] = [];
-    try {
-      let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('alerts');
-      pred.equalTo('handled', 0);
-      pred.orderByDesc('ts');
-      let rs: relationalStore.ResultSet = await RdbHelper.get().query(pred);
-      while (rs.goToNextRow()) {
-        list.push(Repository.readAlert(rs));
-      }
-      rs.close();
-    } catch (err) {
-      console.error(`查询待处置告警失败: ${JSON.stringify(err)}`);
       throw err as Error;
     }
     return list;
@@ -197,7 +174,7 @@ export class Repository {
         list.push({
           id: rs.getLong(rs.getColumnIndex('id')),
           alertId: rs.getLong(rs.getColumnIndex('alert_id')),
-          ip: rs.getString(rs.getColumnIndex('ip')),
+          deviceNo: rs.getLong(rs.getColumnIndex('device_no')),
           alertType: rs.getString(rs.getColumnIndex('alert_type')),
           result: rs.getString(rs.getColumnIndex('result')),
           operator: rs.getString(rs.getColumnIndex('operator')),
@@ -213,30 +190,25 @@ export class Repository {
   }
 
   private static readAlert(rs: relationalStore.ResultSet): AlertRecord {
-    try {
-      return {
-        id: rs.getLong(rs.getColumnIndex('id')),
-        ip: rs.getString(rs.getColumnIndex('ip')),
-        ts: rs.getLong(rs.getColumnIndex('ts')),
-        type: rs.getString(rs.getColumnIndex('type')),
-        level: rs.getLong(rs.getColumnIndex('level')),
-        message: rs.getString(rs.getColumnIndex('message')),
-        handled: rs.getLong(rs.getColumnIndex('handled')),
-        handleResult: rs.getString(rs.getColumnIndex('handle_result')),
-        handleTs: rs.getLong(rs.getColumnIndex('handle_ts'))
-      };
-    } catch (err) {
-      console.error(`读取告警行失败: ${JSON.stringify(err)}`);
-      throw err as Error;
-    }
+    return {
+      id: rs.getLong(rs.getColumnIndex('id')),
+      deviceNo: rs.getLong(rs.getColumnIndex('device_no')),
+      ts: rs.getLong(rs.getColumnIndex('ts')),
+      type: rs.getString(rs.getColumnIndex('type')),
+      level: rs.getLong(rs.getColumnIndex('level')),
+      message: rs.getString(rs.getColumnIndex('message')),
+      handled: rs.getLong(rs.getColumnIndex('handled')),
+      handleResult: rs.getString(rs.getColumnIndex('handle_result')),
+      handleTs: rs.getLong(rs.getColumnIndex('handle_ts'))
+    };
   }
 
-  private static async queryActivityRange(ip: string, fromTs: number, toTs: number): Promise<ActivityRecord[]> {
+  private static async queryActivityRange(deviceNo: number, fromTs: number, toTs: number): Promise<ActivityRecord[]> {
     let list: ActivityRecord[] = [];
     try {
       let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('activity');
-      if (ip.length > 0) {
-        pred.equalTo('ip', ip);
+      if (deviceNo >= 0) {
+        pred.equalTo('device_no', deviceNo);
       }
       pred.greaterThanOrEqualTo('ts', fromTs);
       pred.lessThan('ts', toTs);
@@ -245,7 +217,7 @@ export class Repository {
       while (rs.goToNextRow()) {
         list.push({
           id: rs.getLong(rs.getColumnIndex('id')),
-          ip: rs.getString(rs.getColumnIndex('ip')),
+          deviceNo: rs.getLong(rs.getColumnIndex('device_no')),
           ts: rs.getLong(rs.getColumnIndex('ts')),
           count: rs.getLong(rs.getColumnIndex('count'))
         });
@@ -261,13 +233,13 @@ export class Repository {
   // ---------------- 统计 ----------------
 
   /** 今日 / 昨日活动对比 + 今日时段分布 */
-  static async report(ip: string): Promise<ReportData> {
+  static async report(deviceNo: number): Promise<ReportData> {
     let now: number = Date.now();
     let todayStart: number = DateUtil.startOfDay(now);
     let yesterdayStart: number = todayStart - 86400000;
 
-    let todayRows: ActivityRecord[] = await Repository.queryActivityRange(ip, todayStart, now + 1000);
-    let yesterdayRows: ActivityRecord[] = await Repository.queryActivityRange(ip, yesterdayStart, todayStart);
+    let todayRows: ActivityRecord[] = await Repository.queryActivityRange(deviceNo, todayStart, now + 1000);
+    let yesterdayRows: ActivityRecord[] = await Repository.queryActivityRange(deviceNo, yesterdayStart, todayStart);
 
     let today: number = 0;
     let hourly: HourStat[] = [];
@@ -294,10 +266,10 @@ export class Repository {
   }
 
   /** 最近 days 天每日活动量（用于周/月趋势） */
-  static async dailyTrend(ip: string, days: number): Promise<DayStat[]> {
+  static async dailyTrend(deviceNo: number, days: number): Promise<DayStat[]> {
     let todayStart: number = DateUtil.startOfDay(Date.now());
     let fromTs: number = todayStart - (days - 1) * 86400000;
-    let rows: ActivityRecord[] = await Repository.queryActivityRange(ip, fromTs, todayStart + 86400000);
+    let rows: ActivityRecord[] = await Repository.queryActivityRange(deviceNo, fromTs, todayStart + 86400000);
 
     let list: DayStat[] = [];
     let index: Map<string, number> = new Map<string, number>();

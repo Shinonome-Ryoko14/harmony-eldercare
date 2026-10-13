@@ -1,14 +1,16 @@
 import { DeviceData, FetchState, LatestRecord } from '../common/Types';
+import { ConfigStore } from './ConfigStore';
 
 export type StoreListener = (devices: DeviceData[]) => void;
 
 /**
- * 全局内存状态：保存所有已发现设备的实时数据，并通知订阅者。
+ * 全局内存状态：保存各设备的实时数据、最近上报历史与拉取状态，并通知订阅者。
+ * 设备以 deviceNo 唯一标识。
  */
 export class AppStore {
   private static instance: AppStore | null = null;
-  private devices: Map<string, DeviceData> = new Map<string, DeviceData>();
-  private selectedIp: string = '';
+  private devices: Map<number, DeviceData> = new Map<number, DeviceData>();
+  private selectedDeviceNo: number = -1;
   private listeners: StoreListener[] = [];
   private history: LatestRecord[] = [];
   private fetchState: FetchState = { ok: false, message: '未连接', ts: 0 };
@@ -28,53 +30,42 @@ export class AppStore {
     return arr;
   }
 
-  hasDevice(ip: string): boolean {
-    return this.devices.has(ip);
-  }
-
-  getDevice(ip: string): DeviceData | undefined {
-    return this.devices.get(ip);
-  }
-
-  /** 首次发现设备时返回 true */
-  upsert(data: DeviceData): boolean {
-    let isNew: boolean = !this.devices.has(data.ip);
-    this.devices.set(data.ip, data);
-    if (this.selectedIp.length === 0) {
-      this.selectedIp = data.ip;
+  /** 写入 / 更新设备实时数据 */
+  upsert(data: DeviceData): void {
+    this.devices.set(data.deviceNo, data);
+    if (this.selectedDeviceNo < 0) {
+      this.selectedDeviceNo = data.deviceNo;
     }
     this.emit();
-    return isNew;
   }
 
-  markOffline(ip: string): void {
-    let d: DeviceData | undefined = this.devices.get(ip);
+  markOffline(deviceNo: number): void {
+    let d: DeviceData | undefined = this.devices.get(deviceNo);
     if (d !== undefined && d.online) {
       d.online = false;
-      this.devices.set(ip, d);
+      this.devices.set(deviceNo, d);
       this.emit();
     }
   }
 
-  getSelectedIp(): string {
-    if (this.selectedIp.length > 0 && this.devices.has(this.selectedIp)) {
-      return this.selectedIp;
-    }
-    let arr: DeviceData[] = this.getDevices();
-    return arr.length > 0 ? arr[0].ip : '';
-  }
-
-  setSelectedIp(ip: string): void {
-    this.selectedIp = ip;
+  /** 切换设备 / 重连前清空内存设备与历史 */
+  clearDevices(): void {
+    this.devices.clear();
+    this.selectedDeviceNo = -1;
+    this.history = [];
     this.emit();
   }
 
-  current(): DeviceData | undefined {
-    let ip: string = this.getSelectedIp();
-    if (ip.length === 0) {
-      return undefined;
+  /** 当前选中的设备号；内存中暂无设备时回落到已配置的设备号 */
+  getSelectedDeviceNo(): number {
+    if (this.selectedDeviceNo >= 0 && this.devices.has(this.selectedDeviceNo)) {
+      return this.selectedDeviceNo;
     }
-    return this.devices.get(ip);
+    return ConfigStore.getDeviceNo();
+  }
+
+  current(): DeviceData | undefined {
+    return this.devices.get(this.getSelectedDeviceNo());
   }
 
   subscribe(listener: StoreListener): void {

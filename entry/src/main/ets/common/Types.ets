@@ -1,24 +1,11 @@
 /**
- * 通用数据类型定义
+ * 通用数据类型定义（HTTP 数据源模式）。
+ * 设备统一以 deviceNo（服务端 device_no）作为唯一标识。
  */
 
-/** 硬件 UDP 上报的原始数值报文（旧协议，仅 UDP 拆分时使用） */
-export interface RawDeviceMessage {
-  temp?: number;
-  humi?: number;
-  magnet?: number;
-  pulse?: number;
-  total?: number;
-  sos?: number;
-}
-
-/**
- * 解析后的设备实时数据。
- * `ip` 现作为“设备标识”使用（HTTP 模式下取 device_no 的字符串形式），
- * 数据库列名保持 `ip` 不变，避免大范围改动。
- */
+/** 解析后的设备实时数据 */
 export interface DeviceData {
-  ip: string;
+  /** 设备号（服务端 device_no），设备的唯一标识 */
   deviceNo: number;
   temp: number;
   humi: number;
@@ -33,8 +20,10 @@ export interface DeviceData {
   alarm: number;
   /** 报警类型描述 */
   alarmType: string;
-  /** 最后一次收到报文的时间戳(ms) */
+  /** 本地最近一次成功拉取的时间戳(ms)，用于在线判定 */
   lastSeen: number;
+  /** 服务端 created_at 时间戳(ms)，用于界面展示 */
+  serverTs: number;
   /** 最后检测到人体活动的时间戳(ms)，0 表示未知 */
   lastActive: number;
   /** 是否在线 */
@@ -87,7 +76,7 @@ export enum AlertLevel {
 /** 告警记录 */
 export interface AlertRecord {
   id: number;
-  ip: string;
+  deviceNo: number;
   ts: number;
   type: string;
   level: number;
@@ -100,7 +89,7 @@ export interface AlertRecord {
 /** 活动记录 */
 export interface ActivityRecord {
   id: number;
-  ip: string;
+  deviceNo: number;
   ts: number;
   count: number;
 }
@@ -109,18 +98,11 @@ export interface ActivityRecord {
 export interface SafetyLog {
   id: number;
   alertId: number;
-  ip: string;
+  deviceNo: number;
   alertType: string;
   result: string;
   operator: string;
   ts: number;
-}
-
-/** 设备信息 */
-export interface DeviceInfo {
-  ip: string;
-  name: string;
-  lastSeen: number;
 }
 
 /** 单日统计 */

@@ -37,7 +37,7 @@ interface RuleState {
  */
 export class RuleEngine {
   private static instance: RuleEngine | null = null;
-  private states: Map<string, RuleState> = new Map<string, RuleState>();
+  private states: Map<number, RuleState> = new Map<number, RuleState>();
   private static readonly COOLDOWN: number = 10 * 60 * 1000;
 
   static get(): RuleEngine {
@@ -47,8 +47,8 @@ export class RuleEngine {
     return RuleEngine.instance;
   }
 
-  private stateOf(ip: string): RuleState {
-    let s: RuleState | undefined = this.states.get(ip);
+  private stateOf(deviceNo: number): RuleState {
+    let s: RuleState | undefined = this.states.get(deviceNo);
     if (s === undefined) {
       s = {
         lastPresence: -1,
@@ -62,7 +62,7 @@ export class RuleEngine {
         lastActive: 0,
         lastAlertTs: new Map<string, number>()
       };
-      this.states.set(ip, s);
+      this.states.set(deviceNo, s);
     }
     return s;
   }
@@ -79,7 +79,7 @@ export class RuleEngine {
   /** 处理一条新报文（会就地更新 data.lastActive） */
   process(data: DeviceData): RuleResult {
     let now: number = data.lastSeen > 0 ? data.lastSeen : Date.now();
-    let s: RuleState = this.stateOf(data.ip);
+    let s: RuleState = this.stateOf(data.deviceNo);
     let result: RuleResult = {
       activityCount: 0,
       activeNow: false,
@@ -174,10 +174,16 @@ export class RuleEngine {
     return result;
   }
 
+  /** 设备已记录的最后活动时间戳(ms)，用于界面展示 */
+  lastActiveOf(deviceNo: number): number {
+    let s: RuleState | undefined = this.states.get(deviceNo);
+    return s !== undefined ? s.lastActive : 0;
+  }
+
   /** 周期性检查（无活动、门窗久开） */
   checkPeriodic(data: DeviceData): AlertDraft[] {
     let now: number = Date.now();
-    let s: RuleState = this.stateOf(data.ip);
+    let s: RuleState = this.stateOf(data.deviceNo);
     let alerts: AlertDraft[] = [];
 
     if (data.lastActive > 0 && now - data.lastActive > Constants.INACTIVITY_THRESHOLD

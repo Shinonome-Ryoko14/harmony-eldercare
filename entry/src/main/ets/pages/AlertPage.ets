@@ -2,11 +2,13 @@ import { AlertRecord } from '../common/Types';
 import { DateUtil } from '../common/Protocol';
 import { Theme } from '../common/Theme';
 import { AppStore } from '../store/AppStore';
+import { ConfigStore } from '../store/ConfigStore';
 import { Repository } from '../data/Repository';
+import { ConnectionBadge } from '../components/ConnectionBadge';
 
 const EMPTY_ALERT: AlertRecord = {
   id: 0,
-  ip: '',
+  deviceNo: -1,
   ts: 0,
   type: '',
   level: 0,
@@ -32,6 +34,8 @@ export struct AlertPage {
   @State activeAlert: AlertRecord = EMPTY_ALERT;
   @State resultText: string = '';
   @State operatorText: string = '';
+  @State fetchOk: boolean = false;
+  @State fetchMsg: string = '未连接';
   private timer: number = -1;
 
   aboutToAppear(): void {
@@ -50,8 +54,10 @@ export struct AlertPage {
 
   private async reload(): Promise<void> {
     try {
-      let ip: string = AppStore.get().getSelectedIp();
-      let list: AlertRecord[] = await Repository.queryAlerts(ip, 100);
+      this.fetchOk = AppStore.get().getFetchState().ok;
+      this.fetchMsg = AppStore.get().getFetchState().message;
+      let deviceNo: number = AppStore.get().getSelectedDeviceNo();
+      let list: AlertRecord[] = await Repository.queryAlerts(deviceNo, 100);
       let pending: number = 0;
       list.forEach((a: AlertRecord) => {
         if (a.handled === 0) {
@@ -290,6 +296,12 @@ export struct AlertPage {
           }
           .width('100%')
           .alignItems(VerticalAlign.Center)
+
+          ConnectionBadge({
+            ok: this.fetchOk,
+            message: this.fetchMsg,
+            serverUrl: ConfigStore.baseUrl()
+          })
 
           if (this.alerts.length === 0) {
             Text('暂无告警记录，系统运行正常')

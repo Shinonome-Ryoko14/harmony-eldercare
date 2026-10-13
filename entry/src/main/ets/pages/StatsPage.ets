@@ -1,8 +1,10 @@
 import { DayStat } from '../common/Types';
 import { Theme } from '../common/Theme';
 import { AppStore } from '../store/AppStore';
+import { ConfigStore } from '../store/ConfigStore';
 import { Repository } from '../data/Repository';
 import { BarChart } from '../components/BarChart';
+import { ConnectionBadge } from '../components/ConnectionBadge';
 
 @Component
 export struct StatsPage {
@@ -10,6 +12,8 @@ export struct StatsPage {
   @State month: DayStat[] = [];
   @State showMonth: boolean = false;
   @State risk: string = '';
+  @State fetchOk: boolean = false;
+  @State fetchMsg: string = '未连接';
   private timer: number = -1;
 
   aboutToAppear(): void {
@@ -28,9 +32,11 @@ export struct StatsPage {
 
   private async reload(): Promise<void> {
     try {
-      let ip: string = AppStore.get().getSelectedIp();
-      this.week = await Repository.dailyTrend(ip, 7);
-      this.month = await Repository.dailyTrend(ip, 30);
+      this.fetchOk = AppStore.get().getFetchState().ok;
+      this.fetchMsg = AppStore.get().getFetchState().message;
+      let deviceNo: number = AppStore.get().getSelectedDeviceNo();
+      this.week = await Repository.dailyTrend(deviceNo, 7);
+      this.month = await Repository.dailyTrend(deviceNo, 30);
       this.risk = this.evaluateRisk();
     } catch (e) {
       console.error(`加载统计失败: ${JSON.stringify(e)}`);
@@ -83,6 +89,12 @@ export struct StatsPage {
           .fontWeight(FontWeight.Bold)
           .fontColor(Theme.TEXT)
           .width('100%')
+
+        ConnectionBadge({
+          ok: this.fetchOk,
+          message: this.fetchMsg,
+          serverUrl: ConfigStore.baseUrl()
+        })
 
         Row({ space: 8 }) {
           Text('本周趋势')

@@ -1,8 +1,10 @@
 import { HourStat, ReportData } from '../common/Types';
 import { Theme } from '../common/Theme';
 import { AppStore, StoreListener } from '../store/AppStore';
+import { ConfigStore } from '../store/ConfigStore';
 import { Repository } from '../data/Repository';
 import { BarChart } from '../components/BarChart';
+import { ConnectionBadge } from '../components/ConnectionBadge';
 
 function defaultReport(): ReportData {
   let hourly: HourStat[] = [];
@@ -15,17 +17,22 @@ function defaultReport(): ReportData {
 @Component
 export struct ReportPage {
   @State report: ReportData = defaultReport();
-  @State currentIp: string = '';
+  @State currentDeviceNo: number = -1;
   @State loaded: boolean = false;
+  @State fetchOk: boolean = false;
+  @State fetchMsg: string = '未连接';
   private timer: number = -1;
   private listener: StoreListener = () => {
+    this.syncConn();
     this.reload();
   };
 
   aboutToAppear(): void {
     AppStore.get().subscribe(this.listener);
+    this.syncConn();
     this.reload();
     this.timer = setInterval(() => {
+      this.syncConn();
       this.reload();
     }, 3000);
   }
@@ -38,11 +45,16 @@ export struct ReportPage {
     }
   }
 
+  private syncConn(): void {
+    this.fetchOk = AppStore.get().getFetchState().ok;
+    this.fetchMsg = AppStore.get().getFetchState().message;
+  }
+
   private async reload(): Promise<void> {
-    let ip: string = AppStore.get().getSelectedIp();
-    this.currentIp = ip;
+    let deviceNo: number = AppStore.get().getSelectedDeviceNo();
+    this.currentDeviceNo = deviceNo;
     try {
-      let r: ReportData = await Repository.report(ip);
+      let r: ReportData = await Repository.report(deviceNo);
       this.report = r;
       this.loaded = true;
     } catch (e) {
@@ -96,7 +108,14 @@ export struct ReportPage {
           .fontWeight(FontWeight.Bold)
           .fontColor(Theme.TEXT)
           .width('100%')
-        Text(this.currentIp.length > 0 ? `设备 ${this.currentIp}` : '暂无设备，等待数据上报')
+
+        ConnectionBadge({
+          ok: this.fetchOk,
+          message: this.fetchMsg,
+          serverUrl: ConfigStore.baseUrl()
+        })
+
+        Text(this.currentDeviceNo >= 0 ? `设备号 ${this.currentDeviceNo}` : '暂无设备，等待数据上报')
           .fontSize(12)
           .fontColor(Theme.SUB)
           .width('100%')

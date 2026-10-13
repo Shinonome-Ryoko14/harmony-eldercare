@@ -8,7 +8,6 @@ import { HttpService } from '../network/HttpService';
 import { InfoCard } from '../components/InfoCard';
 
 const EMPTY_DEVICE: DeviceData = {
-  ip: '',
   deviceNo: 0,
   temp: 0,
   humi: 0,
@@ -19,13 +18,13 @@ const EMPTY_DEVICE: DeviceData = {
   alarm: 0,
   alarmType: '',
   lastSeen: 0,
+  serverTs: 0,
   lastActive: 0,
   online: false
 };
 
 @Component
 export struct RealtimePage {
-  @State deviceIps: string[] = [];
   @State current: DeviceData = EMPTY_DEVICE;
   @State history: LatestRecord[] = [];
   @State fetchOk: boolean = false;
@@ -37,16 +36,9 @@ export struct RealtimePage {
   @State tick: number = 0;
   private timer: number = -1;
 
-  private listener: StoreListener = (devices: DeviceData[]) => {
-    let ips: string[] = [];
-    devices.forEach((d: DeviceData) => {
-      ips.push(d.ip);
-    });
-    this.deviceIps = ips;
+  private listener: StoreListener = () => {
     let cur: DeviceData | undefined = AppStore.get().current();
-    if (cur !== undefined) {
-      this.current = cur;
-    }
+    this.current = cur !== undefined ? cur : EMPTY_DEVICE;
     this.history = AppStore.get().getHistory();
     this.fetchOk = AppStore.get().getFetchState().ok;
     this.fetchMsg = AppStore.get().getFetchState().message;
@@ -54,7 +46,7 @@ export struct RealtimePage {
 
   aboutToAppear(): void {
     AppStore.get().subscribe(this.listener);
-    this.listener(AppStore.get().getDevices());
+    this.listener();
     this.hostInput = ConfigStore.getHost();
     this.portInput = `${ConfigStore.getPort()}`;
     this.deviceInput = `${ConfigStore.getDeviceNo()}`;
@@ -386,7 +378,7 @@ export struct RealtimePage {
               title: '设备状态',
               value: this.statusText(),
               icon: '📶',
-              subtitle: this.current.lastSeen > 0 ? `最近上报 ${DateUtil.time(this.current.lastSeen)}` : '等待数据...',
+              subtitle: this.current.serverTs > 0 ? `最近上报 ${DateUtil.time(this.current.serverTs)}` : '等待数据...',
               accent: this.current.online ? Theme.OK : Theme.DANGER
             })
           }.width('48%').margin({ bottom: 12 })

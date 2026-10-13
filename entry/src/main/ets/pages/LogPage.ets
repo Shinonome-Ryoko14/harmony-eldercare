@@ -1,11 +1,16 @@
 import { SafetyLog } from '../common/Types';
 import { DateUtil } from '../common/Protocol';
 import { Theme } from '../common/Theme';
+import { AppStore } from '../store/AppStore';
+import { ConfigStore } from '../store/ConfigStore';
 import { Repository } from '../data/Repository';
+import { ConnectionBadge } from '../components/ConnectionBadge';
 
 @Component
 export struct LogPage {
   @State logs: SafetyLog[] = [];
+  @State fetchOk: boolean = false;
+  @State fetchMsg: string = '未连接';
   private timer: number = -1;
 
   aboutToAppear(): void {
@@ -24,6 +29,8 @@ export struct LogPage {
 
   private async reload(): Promise<void> {
     try {
+      this.fetchOk = AppStore.get().getFetchState().ok;
+      this.fetchMsg = AppStore.get().getFetchState().message;
       this.logs = await Repository.queryLogs(200);
     } catch (e) {
       console.error(`加载日志失败: ${JSON.stringify(e)}`);
@@ -82,6 +89,12 @@ export struct LogPage {
           .fontSize(12)
           .fontColor(Theme.SUB)
           .width('100%')
+
+        ConnectionBadge({
+          ok: this.fetchOk,
+          message: this.fetchMsg,
+          serverUrl: ConfigStore.baseUrl()
+        })
 
         if (this.logs.length === 0) {
           Text('暂无处置记录')
