@@ -1,4 +1,4 @@
-import { DeviceData } from '../common/Types';
+import { DeviceData, FetchState, LatestRecord } from '../common/Types';
 
 export type StoreListener = (devices: DeviceData[]) => void;
 
@@ -10,6 +10,8 @@ export class AppStore {
   private devices: Map<string, DeviceData> = new Map<string, DeviceData>();
   private selectedIp: string = '';
   private listeners: StoreListener[] = [];
+  private history: LatestRecord[] = [];
+  private fetchState: FetchState = { ok: false, message: '未连接', ts: 0 };
 
   static get(): AppStore {
     if (AppStore.instance === null) {
@@ -84,6 +86,24 @@ export class AppStore {
     if (idx >= 0) {
       this.listeners.splice(idx, 1);
     }
+  }
+
+  getHistory(): LatestRecord[] {
+    return this.history;
+  }
+
+  setHistory(list: LatestRecord[]): void {
+    this.history = list;
+    this.emit();
+  }
+
+  getFetchState(): FetchState {
+    return this.fetchState;
+  }
+
+  setFetchState(state: FetchState): void {
+    this.fetchState = state;
+    this.emit();
   }
 
   private emit(): void {

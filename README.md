@@ -21,25 +21,36 @@
 
 ## 二、通信设计
 
-- 端口：**8888**（在 `entry/src/main/ets/common/Constants.ets` 中修改）
-- APP 每 3 秒向 `255.255.255.255:8888` 广播探测包 `ELDER_CARE_DISCOVER`
-- 硬件收到探测包后，把数据回发到 APP 的来源地址
-- 报文格式（字段可能变动）：
-  ```json
-  {"temp":26.5,"humi":34,"magnet":0,"pulse":0,"total":0,"sos":0}
+APP 通过 **HTTP 轮询** 局域网内的数据服务器（每次接入的路由不同，**IP/端口/设备号都可在 APP 内修改并保存，不写死**）。
+
+- 默认服务器：`http://10.19.81.90:8000`（实时页顶部「服务器设置」里可改，保存在本机 preferences）
+- 拉取接口（每 3 秒一次）：
   ```
-- **设备发现**：以报文的来源 IP 作为设备标识，自动加入设备列表（即“扫描可用 IP”）
-- **在线判定**：超过 10 秒未收到报文即判为离线
-- **字段名变更**：只需修改 `Constants.ets` 中的 `FIELD_KEYS`
+  GET http://{IP}:{PORT}/api/device/latest/?device_no={n}&limit=10
+  ```
+- 响应格式：
+  ```json
+  {"code":0,"latest":{"id":168,"device_no":0,"temp":25.4,"humi":52.0,
+   "radar_presence":0,"radar_motion":0,"door1":0,"sos":0,"alarm":0,
+   "alarm_type":"","created_at":"2026-10-13 06:27:57"},
+   "history":[ ...同上结构，按 id 倒序，最多 limit 条... ]}
+  ```
+- 解析：`code` 必须为 0；`latest` + `history` 合并且按 `id` 去重；新记录写入本地 `samples` 表并推导活动/告警
+- 在线判定：以 `created_at` 为上报时间，超过 10 秒未更新判为离线
+- 网页查看页：直接在浏览器打开 `http://{IP}:{PORT}`
 
 | 字段 | 含义 |
 | --- | --- |
 | `temp` | 室内温度(℃) |
 | `humi` | 室内湿度(%) |
-| `magnet` | 门窗磁（0 关 / 1 开） |
-| `pulse` | 人体活动（0 无 / 1 有） |
-| `total` | 累计活动次数 |
+| `radar_presence` | 雷达存在（0 无 / 1 有） |
+| `radar_motion` | 雷达运动（0 无 / 1 有） |
+| `door1` | 门窗磁（0 关 / 1 开） |
 | `sos` | 紧急求助（0 正常 / 1 求助） |
+| `alarm` / `alarm_type` | 设备报警（0 正常 / 1 报警）及类型 |
+| `created_at` | 服务器记录时间 |
+
+> 旧版 **UDP 广播**（端口 8888，`network/UdpService.ets`）代码保留但默认不再启动，硬件若要切回 UDP 模式可在 `EntryAbility` 中改回。
 
 ---
 
@@ -47,14 +58,14 @@
 
 ```
 entry/src/main/ets/
-  common/      Constants(端口/字段映射)  Protocol(报文解析)  Types(数据模型)  Theme(配色)
-  network/     UdpService(探测包 + 收包 + 在线判定)
-  data/        RdbHelper(SQLite)  Repository(增删查 + 统计)  RuleEngine(告警规则)
-  store/       AppStore(实时数据全局状态)
+  common/      Constants(服务器默认值/字段映射/阈值)  Protocol(报文解析+时间)  Types(数据模型)  Theme(配色)
+  network/     HttpService(HTTP 轮询 + 解析 + 在线判定)  UdpService(旧 UDP，默认不启动)
+  data/        RdbHelper(SQLite)  Repository(增删查 + 统计 + 采样累积)  RuleEngine(告警规则)
+  store/       AppStore(实时数据全局状态)  ConfigStore(服务器配置持久化)
   components/  InfoCard(信息卡片)  BarChart(柱状图)
   pages/       Index(底部导航) Realtime/Report/Alert/Stats/Log
-  entryability/EntryAbility.ets   (启动时初始化数据库与 UDP)
-tools/udp_simulator.py             (硬件 UDP 模拟器)
+  entryability/EntryAbility.ets   (启动时初始化数据库、配置与 HTTP 服务)
+tools/udp_simulator.py             (旧 UDP 模拟器，HTTP 模式下不需要)
 ```
 
 ---
@@ -70,25 +81,23 @@ tools/udp_simulator.py             (硬件 UDP 模拟器)
 
 ---
 
-## 五、无硬件时联调
+## 五、联调（无硬件时）
 
-工程自带模拟器脚本 `tools/udp_simulator.py`（电脑与手机/模拟器需在同一局域网）：
+新模式下 APP 是 HTTP 客户端，联调只需一个能返回上面 JSON 的服务端：
 
-```bash
-python3 tools/udp_simulator.py                # 监听 8888，收到 APP 探测包即回复数据
-python3 tools/udp_simulator.py --interval 2   # 额外每 2 秒主动广播
-python3 tools/udp_simulator.py --sos          # 模拟一次 SOS 告警
-```
+- 直接使用硬件方提供的服务（浏览器打开 `http://{IP}:{PORT}` 应能看到网页查看页）；
+- 或在电脑上起一个等价的模拟服务，然后在 APP 实时页顶部「服务器设置」填入电脑的局域网 IP 与端口，点「保存并重连」。
 
-> 模拟器与 APP 不能在同一台设备上同时占用 8888 端口：让脚本跑在电脑、APP 跑在手机/模拟器上。
+> APP 与服务器需在同一局域网；手机访问电脑服务时注意关闭电脑防火墙对 8000 端口的拦截。
 
 ---
 
 ## 六、告警规则（APP 端推导，阈值均可在 `Constants.ets` 调整）
 
 - `sos=1` → 紧急求助（最高级）
-- 超过 2 小时无活动 → 长时间无活动
-- 门窗持续开启超过 10 分钟 → 门窗久开
+- `alarm=1` → 设备报警（携带 `alarm_type`）
+- 雷达超过 2 小时无“存在/运动” → 长时间无活动
+- `door1` 持续开启超过 10 分钟 → 门窗久开
 - 温度 / 湿度超出阈值 → 环境异常
 - 设备超时未上报 → 设备离线
 

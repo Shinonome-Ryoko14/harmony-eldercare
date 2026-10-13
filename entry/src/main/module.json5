@@ -11,6 +11,12 @@
     "deliveryWithInstall": true,
     "installationFree": false,
     "pages": "$profile:main_pages",
+    "metadata": [
+      {
+        "name": "ohos.net.http.NetworkSecurityConfig",
+        "resource": "$profile:network_config"
+      }
+    ],
     "abilities": [
       {
         "name": "EntryAbility",

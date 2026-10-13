@@ -1,5 +1,5 @@
 import { Constants } from './Constants';
-import { DeviceData } from './Types';
+import { DeviceData, LatestRecord } from './Types';
 
 /**
  * 报文解析工具。硬件 JSON 形如：
@@ -29,8 +29,80 @@ export class Protocol {
     return def;
   }
 
+  /** 从 Record 中安全读取字符串 */
+  static strOf(rec: Record<string, Object>, key: string, def: string): string {
+    if (key.length === 0) {
+      return def;
+    }
+    let v: Object | undefined = rec[key];
+    if (v === undefined || v === null) {
+      return def;
+    }
+    if (typeof v === 'string') {
+      return v as string;
+    }
+    if (typeof v === 'number') {
+      return `${v as number}`;
+    }
+    if (typeof v === 'boolean') {
+      return (v as boolean) ? '1' : '0';
+    }
+    return def;
+  }
+
   /**
-   * 解析 UDP 文本为设备数据。
+   * 解析服务端单条记录（latest 或 history 元素）。
+   * 形如 {"id":168,"device_no":0,"temp":25.4,"humi":52.0,
+   *       "radar_presence":0,"radar_motion":0,"door1":0,"sos":0,
+   *       "alarm":0,"alarm_type":"","created_at":"2026-10-13 06:27:57"}
+   */
+  static parseRecord(rec: Record<string, Object>): LatestRecord {
+    let f: Record<string, string> = Constants.HTTP_FIELDS;
+    let created: string = Protocol.strOf(rec, f['createdAt'], '');
+    return {
+      id: Protocol.numOf(rec, f['id'], 0),
+      deviceNo: Protocol.numOf(rec, f['deviceNo'], 0),
+      temp: Protocol.numOf(rec, f['temp'], 0),
+      humi: Protocol.numOf(rec, f['humi'], 0),
+      radarPresence: Protocol.numOf(rec, f['radarPresence'], 0),
+      radarMotion: Protocol.numOf(rec, f['radarMotion'], 0),
+      door: Protocol.numOf(rec, f['door'], 0),
+      sos: Protocol.numOf(rec, f['sos'], 0),
+      alarm: Protocol.numOf(rec, f['alarm'], 0),
+      alarmType: Protocol.strOf(rec, f['alarmType'], ''),
+      ts: Protocol.parseDateTime(created)
+    };
+  }
+
+  /**
+   * 解析 "2026-10-13 06:27:57"（或 ISO 的 "...T..."）为时间戳(ms)。
+   * 不用 new Date(str)，避免各引擎对非 ISO 格式解析不一致。
+   */
+  static parseDateTime(s: string): number {
+    if (s.length < 19) {
+      return 0;
+    }
+    let t: string = s.trim();
+    if (t.length < 19) {
+      return 0;
+    }
+    t = t.replace('T', ' ');
+    let year: number = Number.parseInt(t.substring(0, 4));
+    let month: number = Number.parseInt(t.substring(5, 7));
+    let day: number = Number.parseInt(t.substring(8, 10));
+    let hour: number = Number.parseInt(t.substring(11, 13));
+    let min: number = Number.parseInt(t.substring(14, 16));
+    let sec: number = Number.parseInt(t.substring(17, 19));
+    if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)
+      || Number.isNaN(hour) || Number.isNaN(min) || Number.isNaN(sec)) {
+      return 0;
+    }
+    let d: Date = new Date(year, month - 1, day, hour, min, sec);
+    return d.getTime();
+  }
+
+  /**
+   * 解析 UDP 文本为设备数据（旧协议，保留以兼容硬件 UDP 上报）。
    * @param ip 来源 IP
    * @param text 报文内容
    */
@@ -47,14 +119,18 @@ export class Protocol {
     }
     let keys: Record<string, string> = Constants.FIELD_KEYS;
     let now: number = Date.now();
+    let pulse: number = Protocol.numOf(rec, keys['pulse'], 0);
     let data: DeviceData = {
       ip: ip,
+      deviceNo: 0,
       temp: Protocol.numOf(rec, keys['temp'], 0),
       humi: Protocol.numOf(rec, keys['humi'], 0),
-      magnet: Protocol.numOf(rec, keys['magnet'], 0),
-      pulse: Protocol.numOf(rec, keys['pulse'], 0),
-      total: Protocol.numOf(rec, keys['total'], 0),
+      door: Protocol.numOf(rec, keys['magnet'], 0),
+      radarPresence: pulse,
+      radarMotion: pulse,
       sos: Protocol.numOf(rec, keys['sos'], 0),
+      alarm: 0,
+      alarmType: '',
       lastSeen: now,
       lastActive: 0,
       online: true

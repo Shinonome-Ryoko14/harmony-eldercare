@@ -30,6 +30,18 @@ const SQL_CREATE_LOGS: string =
   'operator TEXT NOT NULL DEFAULT \'\', ' +
   'ts INTEGER NOT NULL)';
 
+/** 服务端采样记录（本地累积，用于历史与统计；device_no + remote_id 唯一去重） */
+const SQL_CREATE_SAMPLES: string =
+  'CREATE TABLE IF NOT EXISTS samples (' +
+  'id INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+  'device_no INTEGER NOT NULL, remote_id INTEGER NOT NULL, ' +
+  'ts INTEGER NOT NULL, ' +
+  'temp REAL NOT NULL DEFAULT 0, humi REAL NOT NULL DEFAULT 0, ' +
+  'radar_presence INTEGER NOT NULL DEFAULT 0, radar_motion INTEGER NOT NULL DEFAULT 0, ' +
+  'door1 INTEGER NOT NULL DEFAULT 0, sos INTEGER NOT NULL DEFAULT 0, ' +
+  'alarm INTEGER NOT NULL DEFAULT 0, alarm_type TEXT NOT NULL DEFAULT \'\', ' +
+  'UNIQUE(device_no, remote_id))';
+
 /**
  * 关系型数据库（SQLite）初始化与单例获取。
  */
@@ -45,6 +57,7 @@ export class RdbHelper {
       await store.executeSql(SQL_CREATE_ACTIVITY);
       await store.executeSql(SQL_CREATE_ALERTS);
       await store.executeSql(SQL_CREATE_LOGS);
+      await store.executeSql(SQL_CREATE_SAMPLES);
       RdbHelper.store = store;
     } catch (err) {
       console.error(`数据库初始化失败: ${JSON.stringify(err)}`);

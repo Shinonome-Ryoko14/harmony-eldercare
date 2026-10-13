@@ -3,7 +3,8 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { RdbHelper } from '../data/RdbHelper';
-import { UdpService } from '../network/UdpService';
+import { ConfigStore } from '../store/ConfigStore';
+import { HttpService } from '../network/HttpService';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'EntryAbility';
@@ -17,10 +18,16 @@ export default class EntryAbility extends UIAbility {
       let err: BusinessError = e as BusinessError;
       hilog.error(DOMAIN, TAG, `数据库初始化失败: ${err.code} ${err.message}`);
     }
+    try {
+      await ConfigStore.init(this.context);
+    } catch (e) {
+      let err: BusinessError = e as BusinessError;
+      hilog.error(DOMAIN, TAG, `配置初始化失败: ${err.code} ${err.message}`);
+    }
   }
 
   onDestroy(): void {
-    UdpService.get().stop();
+    HttpService.get().stop();
     hilog.info(DOMAIN, TAG, 'onDestroy');
   }
 
@@ -30,8 +37,8 @@ export default class EntryAbility extends UIAbility {
         hilog.error(DOMAIN, TAG, `加载页面失败: ${err.code} ${err.message}`);
         return;
       }
-      UdpService.get().start().catch((e: BusinessError) => {
-        hilog.error(DOMAIN, TAG, `UDP 启动失败: ${e.code} ${e.message}`);
+      HttpService.get().start().catch((e: BusinessError) => {
+        hilog.error(DOMAIN, TAG, `HTTP 服务启动失败: ${e.code} ${e.message}`);
       });
     });
   }
@@ -41,8 +48,8 @@ export default class EntryAbility extends UIAbility {
   }
 
   onForeground(): void {
-    UdpService.get().start().catch((e: BusinessError) => {
-      hilog.error(DOMAIN, TAG, `UDP 启动失败: ${e.code} ${e.message}`);
+    HttpService.get().start().catch((e: BusinessError) => {
+      hilog.error(DOMAIN, TAG, `HTTP 服务启动失败: ${e.code} ${e.message}`);
     });
   }
 

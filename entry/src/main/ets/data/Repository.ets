@@ -1,7 +1,7 @@
 import relationalStore from '@ohos.data.relationalStore';
 import { RdbHelper } from './RdbHelper';
 import { AlertDraft } from './RuleEngine';
-import { ActivityRecord, AlertRecord, DayStat, HourStat, ReportData, SafetyLog } from '../common/Types';
+import { ActivityRecord, AlertRecord, DayStat, HourStat, LatestRecord, ReportData, SafetyLog } from '../common/Types';
 import { DateUtil } from '../common/Protocol';
 
 /**
@@ -19,6 +19,83 @@ export class Repository {
       console.error(`写入活动记录失败: ${JSON.stringify(err)}`);
       throw err as Error;
     }
+  }
+
+  /**
+   * 写入一条服务端采样记录（device_no + remote_id 重复时自动忽略）。
+   * @returns 实际插入返回的行号；被忽略时为 -1
+   */
+  static async addSample(rec: LatestRecord): Promise<number> {
+    try {
+      let bucket: relationalStore.ValuesBucket = {
+        'device_no': rec.deviceNo,
+        'remote_id': rec.id,
+        'ts': rec.ts,
+        'temp': rec.temp,
+        'humi': rec.humi,
+        'radar_presence': rec.radarPresence,
+        'radar_motion': rec.radarMotion,
+        'door1': rec.door,
+        'sos': rec.sos,
+        'alarm': rec.alarm,
+        'alarm_type': rec.alarmType
+      };
+      return await RdbHelper.get().insert('samples', bucket,
+        relationalStore.ConflictResolution.ON_CONFLICT_IGNORE);
+    } catch (err) {
+      console.error(`写入采样记录失败: ${JSON.stringify(err)}`);
+      throw err as Error;
+    }
+  }
+
+  /** 已入库的最大服务端记录 id（用于启动时避免重复累计活动） */
+  static async maxRemoteId(deviceNo: number): Promise<number> {
+    let maxId: number = 0;
+    try {
+      let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('samples');
+      pred.equalTo('device_no', deviceNo);
+      pred.orderByDesc('remote_id');
+      pred.limitAs(1);
+      let rs: relationalStore.ResultSet = await RdbHelper.get().query(pred);
+      if (rs.goToNextRow()) {
+        maxId = rs.getLong(rs.getColumnIndex('remote_id'));
+      }
+      rs.close();
+    } catch (err) {
+      console.error(`查询采样最大 id 失败: ${JSON.stringify(err)}`);
+    }
+    return maxId;
+  }
+
+  /** 本地累积的最近采样（服务端不可用时也可展示历史） */
+  static async querySamples(deviceNo: number, limit: number): Promise<LatestRecord[]> {
+    let list: LatestRecord[] = [];
+    try {
+      let pred: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('samples');
+      pred.equalTo('device_no', deviceNo);
+      pred.orderByDesc('ts');
+      pred.limitAs(limit);
+      let rs: relationalStore.ResultSet = await RdbHelper.get().query(pred);
+      while (rs.goToNextRow()) {
+        list.push({
+          id: rs.getLong(rs.getColumnIndex('remote_id')),
+          deviceNo: rs.getLong(rs.getColumnIndex('device_no')),
+          temp: rs.getDouble(rs.getColumnIndex('temp')),
+          humi: rs.getDouble(rs.getColumnIndex('humi')),
+          radarPresence: rs.getLong(rs.getColumnIndex('radar_presence')),
+          radarMotion: rs.getLong(rs.getColumnIndex('radar_motion')),
+          door: rs.getLong(rs.getColumnIndex('door1')),
+          sos: rs.getLong(rs.getColumnIndex('sos')),
+          alarm: rs.getLong(rs.getColumnIndex('alarm')),
+          alarmType: rs.getString(rs.getColumnIndex('alarm_type')),
+          ts: rs.getLong(rs.getColumnIndex('ts'))
+        });
+      }
+      rs.close();
+    } catch (err) {
+      console.error(`查询采样失败: ${JSON.stringify(err)}`);
+    }
+    return list;
   }
 
   static async addAlert(ip: string, draft: AlertDraft, ts: number): Promise<number> {

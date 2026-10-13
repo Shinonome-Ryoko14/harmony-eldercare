@@ -18,20 +18,22 @@ export interface RuleResult {
 }
 
 interface RuleState {
-  lastPulse: number;
-  lastMagnet: number;
-  lastTotal: number;
+  lastPresence: number;
+  lastMotion: number;
+  lastDoor: number;
   doorOpenSince: number;
   sosActive: boolean;
+  alarmActive: boolean;
   inactivityAlerted: boolean;
-  tempAlerted: boolean;
-  humiAlerted: boolean;
   doorAlerted: boolean;
+  /** 最近一次“有人/有运动”的时间戳(ms) */
+  lastActive: number;
   lastAlertTs: Map<string, number>;
 }
 
 /**
  * 告警规则引擎：从周期性报文的状态变化中推导活动、门窗事件与告警。
+ * 适配 HTTP 新字段：radar_presence / radar_motion / door1 / sos / alarm / alarm_type。
  */
 export class RuleEngine {
   private static instance: RuleEngine | null = null;
@@ -49,15 +51,15 @@ export class RuleEngine {
     let s: RuleState | undefined = this.states.get(ip);
     if (s === undefined) {
       s = {
-        lastPulse: -1,
-        lastMagnet: -1,
-        lastTotal: -1,
+        lastPresence: -1,
+        lastMotion: -1,
+        lastDoor: -1,
         doorOpenSince: 0,
         sosActive: false,
+        alarmActive: false,
         inactivityAlerted: false,
-        tempAlerted: false,
-        humiAlerted: false,
         doorAlerted: false,
+        lastActive: 0,
         lastAlertTs: new Map<string, number>()
       };
       this.states.set(ip, s);
@@ -74,9 +76,9 @@ export class RuleEngine {
     return true;
   }
 
-  /** 处理一条新报文 */
+  /** 处理一条新报文（会就地更新 data.lastActive） */
   process(data: DeviceData): RuleResult {
-    let now: number = data.lastSeen;
+    let now: number = data.lastSeen > 0 ? data.lastSeen : Date.now();
     let s: RuleState = this.stateOf(data.ip);
     let result: RuleResult = {
       activityCount: 0,
@@ -85,28 +87,28 @@ export class RuleEngine {
       doorClosed: false,
       alerts: []
     };
+    let moving: boolean = data.radarMotion === 1;
+    let present: boolean = data.radarPresence === 1;
 
-    // ---- 活动检测 ----
-    if (s.lastTotal >= 0 && data.total > s.lastTotal) {
-      result.activityCount += (data.total - s.lastTotal);
-    } else if (s.lastTotal < 0 && data.total > 0) {
-      result.activityCount += data.total;
-    }
-    if (data.pulse === 1 && s.lastPulse === 0) {
+    // ---- 活动检测：雷达运动/存在的上升沿记一次活动 ----
+    if (moving && s.lastMotion !== 1) {
+      result.activityCount += 1;
+    } else if (present && s.lastPresence !== 1) {
       result.activityCount += 1;
     }
-    if (result.activityCount > 0) {
+    if (moving || present) {
       result.activeNow = true;
-      data.lastActive = now;
+      s.lastActive = now;
       s.inactivityAlerted = false;
     }
+    data.lastActive = s.lastActive;
 
-    // ---- 门窗检测 ----
-    if (s.lastMagnet === 0 && data.magnet === 1) {
+    // ---- 门窗检测（door1 0→1 开，1→0 关） ----
+    if (s.lastDoor === 0 && data.door === 1) {
       result.doorOpened = true;
       s.doorOpenSince = now;
       s.doorAlerted = false;
-    } else if (s.lastMagnet === 1 && data.magnet === 0) {
+    } else if (s.lastDoor === 1 && data.door === 0) {
       result.doorClosed = true;
       s.doorOpenSince = 0;
       s.doorAlerted = false;
@@ -122,6 +124,19 @@ export class RuleEngine {
       s.sosActive = true;
     } else if (data.sos === 0) {
       s.sosActive = false;
+    }
+
+    // ---- 设备报警（上升沿触发） ----
+    if (data.alarm === 1 && !s.alarmActive) {
+      let typeText: string = data.alarmType.length > 0 ? data.alarmType : '未知类型';
+      result.alerts.push({
+        type: AlertType.ALARM,
+        level: AlertLevel.CRITICAL,
+        message: `设备触发报警（${typeText}），请及时确认现场情况。`
+      });
+      s.alarmActive = true;
+    } else if (data.alarm === 0) {
+      s.alarmActive = false;
     }
 
     // ---- 环境异常 ----
@@ -153,13 +168,13 @@ export class RuleEngine {
     }
 
     // 保存状态
-    s.lastPulse = data.pulse;
-    s.lastMagnet = data.magnet;
-    s.lastTotal = data.total;
+    s.lastPresence = data.radarPresence;
+    s.lastMotion = data.radarMotion;
+    s.lastDoor = data.door;
     return result;
   }
 
-  /** 周期性检查（无活动、门窗久开、离线） */
+  /** 周期性检查（无活动、门窗久开） */
   checkPeriodic(data: DeviceData): AlertDraft[] {
     let now: number = Date.now();
     let s: RuleState = this.stateOf(data.ip);
