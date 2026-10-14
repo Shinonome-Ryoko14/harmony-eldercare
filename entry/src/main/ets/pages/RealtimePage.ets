@@ -46,7 +46,7 @@ export struct RealtimePage {
 
   aboutToAppear(): void {
     AppStore.get().subscribe(this.listener);
-    this.listener();
+    this.listener(AppStore.get().getDevices());
     this.hostInput = ConfigStore.getHost();
     this.portInput = `${ConfigStore.getPort()}`;
     this.deviceInput = `${ConfigStore.getDeviceNo()}`;

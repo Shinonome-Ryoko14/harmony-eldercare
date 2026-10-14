@@ -190,17 +190,22 @@ export class Repository {
   }
 
   private static readAlert(rs: relationalStore.ResultSet): AlertRecord {
-    return {
-      id: rs.getLong(rs.getColumnIndex('id')),
-      deviceNo: rs.getLong(rs.getColumnIndex('device_no')),
-      ts: rs.getLong(rs.getColumnIndex('ts')),
-      type: rs.getString(rs.getColumnIndex('type')),
-      level: rs.getLong(rs.getColumnIndex('level')),
-      message: rs.getString(rs.getColumnIndex('message')),
-      handled: rs.getLong(rs.getColumnIndex('handled')),
-      handleResult: rs.getString(rs.getColumnIndex('handle_result')),
-      handleTs: rs.getLong(rs.getColumnIndex('handle_ts'))
-    };
+    try {
+      return {
+        id: rs.getLong(rs.getColumnIndex('id')),
+        deviceNo: rs.getLong(rs.getColumnIndex('device_no')),
+        ts: rs.getLong(rs.getColumnIndex('ts')),
+        type: rs.getString(rs.getColumnIndex('type')),
+        level: rs.getLong(rs.getColumnIndex('level')),
+        message: rs.getString(rs.getColumnIndex('message')),
+        handled: rs.getLong(rs.getColumnIndex('handled')),
+        handleResult: rs.getString(rs.getColumnIndex('handle_result')),
+        handleTs: rs.getLong(rs.getColumnIndex('handle_ts'))
+      };
+    } catch (err) {
+      console.error(`读取告警行失败: ${JSON.stringify(err)}`);
+      throw err as Error;
+    }
   }
 
   private static async queryActivityRange(deviceNo: number, fromTs: number, toTs: number): Promise<ActivityRecord[]> {

@@ -75,13 +75,18 @@ export class RdbHelper {
 
   /** 版本升级：清空并重建全部表（设备标识由 ip 迁移为 device_no） */
   private static async recreate(store: relationalStore.RdbStore): Promise<void> {
-    for (let i: number = 0; i < TABLES.length; i++) {
-      await store.executeSql(`DROP TABLE IF EXISTS ${TABLES[i]}`);
+    try {
+      for (let i: number = 0; i < TABLES.length; i++) {
+        await store.executeSql(`DROP TABLE IF EXISTS ${TABLES[i]}`);
+      }
+      await store.executeSql(SQL_CREATE_ACTIVITY);
+      await store.executeSql(SQL_CREATE_ALERTS);
+      await store.executeSql(SQL_CREATE_LOGS);
+      await store.executeSql(SQL_CREATE_SAMPLES);
+    } catch (err) {
+      console.error(`重建数据表失败: ${JSON.stringify(err)}`);
+      throw err as Error;
     }
-    await store.executeSql(SQL_CREATE_ACTIVITY);
-    await store.executeSql(SQL_CREATE_ALERTS);
-    await store.executeSql(SQL_CREATE_LOGS);
-    await store.executeSql(SQL_CREATE_SAMPLES);
   }
 
   static get(): relationalStore.RdbStore {
