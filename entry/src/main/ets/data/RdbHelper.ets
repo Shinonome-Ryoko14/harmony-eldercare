@@ -55,11 +55,32 @@ const SQL_CREATE_SAMPLES: string =
  */
 export class RdbHelper {
   private static store: relationalStore.RdbStore | null = null;
+  private static initPromise: Promise<void> | null = null;
+
+  /** 数据库是否已就绪（供服务层在启动前判断） */
+  static isReady(): boolean {
+    return RdbHelper.store !== null;
+  }
 
   static async init(context: common.Context): Promise<void> {
     if (RdbHelper.store !== null) {
       return;
     }
+    // 并发调用时复用同一个初始化过程，避免重复建库/重建表
+    if (RdbHelper.initPromise !== null) {
+      await RdbHelper.initPromise;
+      return;
+    }
+    let task: Promise<void> = RdbHelper.doInit(context);
+    RdbHelper.initPromise = task;
+    try {
+      await task;
+    } finally {
+      RdbHelper.initPromise = null;
+    }
+  }
+
+  private static async doInit(context: common.Context): Promise<void> {
     try {
       let store: relationalStore.RdbStore = await relationalStore.getRdbStore(context, STORE_CONFIG);
       if (store.version !== DB_VERSION) {
@@ -67,6 +88,7 @@ export class RdbHelper {
         store.version = DB_VERSION;
       }
       RdbHelper.store = store;
+      console.info('数据库初始化完成');
     } catch (err) {
       console.error(`数据库初始化失败: ${JSON.stringify(err)}`);
       throw err as Error;

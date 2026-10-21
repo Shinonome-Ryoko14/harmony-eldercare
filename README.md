@@ -16,6 +16,7 @@
 | 历史预警记录查询（告警时间、类型） | `entry/src/main/ets/pages/AlertPage.ets` |
 | **事件闭环管理（评审重点）**：填写处置结果 + 居家安全日志 | `pages/AlertPage.ets`、`pages/LogPage.ets` |
 | 数据统计分析：周/月活动趋势、时段分布、活动量下降风险提示 | `pages/StatsPage.ets`、`pages/ReportPage.ets` |
+| 设备配置：USB OTG 串口下发 WiFi / 上报地址命令 | `pages/SettingsPage.ets`、`network/UsbSerialService.ets` |
 
 ---
 
@@ -59,14 +60,15 @@ APP 作为 HTTP 客户端，**轮询**局域网内的数据服务器（每次接
 
 ```
 entry/src/main/ets/
-  common/      Constants(服务器默认值/字段映射/阈值)  Protocol(报文解析+时间)  Types(数据模型)  Theme(配色)
+  common/      Constants(服务器默认值/字段候选名/阈值)  Protocol(宽松解析+时间)  Types(数据模型)  Theme(配色)
   network/     HttpService(HTTP 轮询 + 解析 + 入库 + 在线判定)
+               UsbSerialService(CH340 USB 转串口驱动)
   data/        RdbHelper(SQLite)  Repository(增删查 + 统计)  RuleEngine(告警规则)
-  store/       AppStore(实时数据全局状态)  ConfigStore(服务器配置持久化)
+  store/       AppStore(实时数据全局状态)  ConfigStore(服务器/串口配置持久化)
   components/  InfoCard(信息卡片)  BarChart(柱状图)  ConnectionBadge(连接状态条)
-  pages/       Index(底部导航) Realtime/Report/Alert/Stats/Log
+  pages/       Index(底部导航) Realtime/Report/Alert/Stats/Log/Settings
   entryability/EntryAbility.ets   (启动时初始化数据库、配置与 HTTP 服务)
-tools/http_simulator.py            (无硬件时的 HTTP 联调模拟服务)
+tools/http_simulator.py            (无硬件时的 HTTP 联调模拟服务 + 状态控制台)
 ```
 
 ---
@@ -94,9 +96,44 @@ APP 是 HTTP 客户端，联调只需一个能返回上面 JSON 的服务端：
 
 > APP 与服务器需在同一局域网；手机访问电脑服务时注意关闭电脑防火墙对 8000 端口的拦截。
 
+模拟服务自带状态控制台：浏览器打开 `http://<电脑IP>:8000/`，可切换门窗、雷达存在/运动、SOS、报警，并切换“旧字段名 / 时间戳”模式验证 APP 的兼容解析。
+
+### 实时页「接口调试」
+
+实时页状态条下方点「接口调试 ▼」可查看：
+
+- 当前请求地址、刷新次数；
+- 解析后的门磁 / 雷达 / SOS / 报警原始值；
+- 服务端最近一次响应原文。
+
+若发现卡片不更新，先看这里的原始 JSON 字段名是否正确。
+
 ---
 
-## 六、告警规则（APP 端推导，阈值均可在 `Constants.ets` 调整）
+## 六、设备设置（USB OTG + CH340）
+
+手机通过 **USB OTG** 连接开发板的 CH340 串口，在 APP 底部「设置」页直接下发设备命令，无需电脑串口助手。
+
+### 使用步骤
+
+1. 用 OTG 转接线把手机与开发板连接（手机作为 USB Host）。
+2. 打开「设置」页 →「USB 串口」→「刷新」→ 选择 CH340 设备。
+3. 选择波特率（默认 **115200**），点「连接串口」，首次会弹出 USB 授权。
+4. 连接成功后可发送：
+   - `uart0`（按钮手动发送）
+   - `wifi set 名称 密码`
+   - `url show`
+   - `url set http://IP:端口`
+   - `url clear`（恢复固件内置地址，随后自动执行一次 `url show`）
+   - 原始命令框可发送任意命令
+5. 下方串口控制台显示 TX（发送）与 RX（开发板回显）。
+
+> 命令按原样发送，**不追加换行**；名称/密码允许空格，不加引号。
+> 手机侧使用 `@ohos.usbManager` 原始 USB 能力实现 CH340 驱动（`serialManager` 仅支持 PC/2in1），因此工程保持 API 12 即可，无需升级 SDK。
+
+---
+
+## 七、告警规则（APP 端推导，阈值均可在 `Constants.ets` 调整）
 
 - `sos=1` → 紧急求助（最高级）
 - `alarm=1` → 设备报警（携带 `alarm_type`）
@@ -105,7 +142,7 @@ APP 是 HTTP 客户端，联调只需一个能返回上面 JSON 的服务端：
 - 温度 / 湿度超出阈值 → 环境异常
 - 超过 15 秒未成功拉取 → 设备离线
 
-## 七、闭环处置
+## 八、闭环处置
 
 告警页点“填写处置结果” → 选择快捷语或自行填写 → 保存 →
 写入 `alerts`（标记已处置）与 `safety_logs`（居家安全日志），日志页可历史追溯。

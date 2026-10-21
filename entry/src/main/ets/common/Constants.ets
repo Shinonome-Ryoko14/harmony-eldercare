@@ -1,5 +1,5 @@
 /**
- * 全局常量配置。服务端字段若变动，只需修改 HTTP_FIELDS。
+ * 全局常量配置。服务端字段若变动，只需修改 HTTP_FIELD_ALIASES。
  */
 export class Constants {
   /** 超过该时长未成功拉取数据判定离线(ms) */
@@ -43,18 +43,35 @@ export class Constants {
   /** 单次拉取的历史条数 */
   static readonly HTTP_HISTORY_LIMIT: number = 10;
 
-  /** HTTP 报文字段名映射（服务端字段变更时修改此处） */
-  static readonly HTTP_FIELDS: Record<string, string> = {
-    'id': 'id',
-    'deviceNo': 'device_no',
-    'temp': 'temp',
-    'humi': 'humi',
-    'radarPresence': 'radar_presence',
-    'radarMotion': 'radar_motion',
-    'door': 'door1',
-    'sos': 'sos',
-    'alarm': 'alarm',
-    'alarmType': 'alarm_type',
-    'createdAt': 'created_at'
+  /**
+   * 服务端报文字段候选名（按优先级排列）。
+   * 硬件/服务端字段名不一致时，只要把新名字加进对应数组即可，无需改解析代码。
+   */
+  static readonly HTTP_FIELD_ALIASES: Record<string, string[]> = {
+    'id': ['id', 'record_id', 'remote_id', 'seq'],
+    'deviceNo': ['device_no', 'deviceNo', 'device_id', 'device'],
+    'temp': ['temp', 'temperature', 'Temperature', 'wendu'],
+    'humi': ['humi', 'humidity', 'Humidity', 'hum', 'shidu'],
+    'radarPresence': ['radar_presence', 'radarPresence', 'presence', 'body', 'human', 'person', 'exist', 'someone'],
+    'radarMotion': ['radar_motion', 'radarMotion', 'motion', 'move', 'movement', 'active', 'activity'],
+    'door': ['door1', 'door', 'magnet', 'door_status', 'doorState', 'door_open'],
+    'sos': ['sos', 'SOS', 'emergency', 'help', 'sos_status'],
+    'alarm': ['alarm', 'alarm_status', 'alert', 'warning', 'alarmState'],
+    'alarmType': ['alarm_type', 'alarmType', 'alarm_msg', 'alert_type', 'alarm_info'],
+    'createdAt': ['created_at', 'createdAt', 'create_time', 'update_time', 'time', 'timestamp', 'ts']
   };
+
+  // ==================== USB 串口（CH340） ====================
+
+  /** 默认波特率 */
+  static readonly SERIAL_DEFAULT_BAUD: number = 115200;
+
+  /** 串口控制台最多保留的日志行数 */
+  static readonly SERIAL_LOG_MAX: number = 300;
+
+  /** CH340 常见 VID（沁恒） */
+  static readonly CH340_VENDOR_ID: number = 0x1A86;
+
+  /** 串口单次读取缓冲区大小 */
+  static readonly SERIAL_READ_BUFFER: number = 128;
 }

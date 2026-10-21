@@ -25,6 +25,8 @@
 *.log
 *.tmp
 .DS_Store
+__pycache__/
+*.pyc
 
 # 签名文件（切勿提交）
 *.p12

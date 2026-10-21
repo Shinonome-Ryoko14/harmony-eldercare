@@ -30,18 +30,27 @@ export struct RealtimePage {
   @State fetchOk: boolean = false;
   @State fetchMsg: string = '未连接';
   @State showSettings: boolean = false;
+  @State showDebug: boolean = false;
   @State hostInput: string = '';
   @State portInput: string = '';
   @State deviceInput: string = '';
-  @State tick: number = 0;
-  private timer: number = -1;
+  @State lastUpdate: number = 0;
+  @State lastRaw: string = '';
+  @State revision: number = 0;
 
   private listener: StoreListener = () => {
-    let cur: DeviceData | undefined = AppStore.get().current();
+    let store: AppStore = AppStore.get();
+    let cur: DeviceData | undefined = store.current();
     this.current = cur !== undefined ? cur : EMPTY_DEVICE;
-    this.history = AppStore.get().getHistory();
-    this.fetchOk = AppStore.get().getFetchState().ok;
-    this.fetchMsg = AppStore.get().getFetchState().message;
+    let history: LatestRecord[] = store.getHistory();
+    this.history = history.slice(0, history.length);
+    this.fetchOk = store.getFetchState().ok;
+    this.fetchMsg = store.getFetchState().message;
+    if (this.fetchOk) {
+      this.lastUpdate = store.getLastUpdateTs();
+    }
+    this.lastRaw = store.getLastRaw();
+    this.revision = store.getRevision();
   };
 
   aboutToAppear(): void {
@@ -50,17 +59,10 @@ export struct RealtimePage {
     this.hostInput = ConfigStore.getHost();
     this.portInput = `${ConfigStore.getPort()}`;
     this.deviceInput = `${ConfigStore.getDeviceNo()}`;
-    this.timer = setInterval(() => {
-      this.tick = this.tick + 1;
-    }, 1000);
   }
 
   aboutToDisappear(): void {
     AppStore.get().unsubscribe(this.listener);
-    if (this.timer !== -1) {
-      clearInterval(this.timer);
-      this.timer = -1;
-    }
   }
 
   private toast(message: string): void {
@@ -201,29 +203,97 @@ export struct RealtimePage {
 
   @Builder
   statusBanner() {
-    Row() {
-      Column()
-        .width(8)
-        .height(8)
-        .borderRadius(4)
-        .backgroundColor(this.fetchOk ? Theme.OK : Theme.DANGER)
-      Text(this.fetchMsg)
-        .fontSize(12)
-        .fontColor(this.fetchOk ? Theme.OK : Theme.DANGER)
-        .margin({ left: 6 })
-        .layoutWeight(1)
-      Text(this.showSettings ? '收起设置 ▲' : '服务器设置 ▼')
-        .fontSize(12)
-        .fontColor(Theme.PRIMARY)
-        .onClick(() => {
-          this.showSettings = !this.showSettings;
-        })
+    Column({ space: 4 }) {
+      Row() {
+        Column()
+          .width(8)
+          .height(8)
+          .borderRadius(4)
+          .backgroundColor(this.fetchOk ? Theme.OK : Theme.DANGER)
+        Text(this.fetchMsg)
+          .fontSize(12)
+          .fontColor(this.fetchOk ? Theme.OK : Theme.DANGER)
+          .margin({ left: 6 })
+          .layoutWeight(1)
+        Text(this.showSettings ? '收起设置 ▲' : '服务器设置 ▼')
+          .fontSize(12)
+          .fontColor(Theme.PRIMARY)
+          .onClick(() => {
+            this.showSettings = !this.showSettings;
+          })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      Row() {
+        Text(this.lastUpdate > 0 ? `最后更新 ${DateUtil.time(this.lastUpdate)}` : '等待首次数据...')
+          .fontSize(11)
+          .fontColor(Theme.SUB)
+          .layoutWeight(1)
+        Text(this.showDebug ? '收起调试 ▲' : '接口调试 ▼')
+          .fontSize(11)
+          .fontColor(Theme.PRIMARY)
+          .onClick(() => {
+            this.showDebug = !this.showDebug;
+          })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
     }
     .width('100%')
     .padding({ left: 12, right: 12, top: 8, bottom: 8 })
     .backgroundColor(Theme.CARD)
     .borderRadius(12)
-    .alignItems(VerticalAlign.Center)
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
+  debugPanel() {
+    Column({ space: 6 }) {
+      Text('接口调试')
+        .fontSize(14)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(Theme.TEXT)
+        .width('100%')
+      Text(`请求地址：${ConfigStore.apiUrl(Constants.HTTP_HISTORY_LIMIT)}`)
+        .fontSize(11)
+        .fontColor(Theme.SUB)
+        .width('100%')
+      Text(`刷新次数：${this.revision}`)
+        .fontSize(11)
+        .fontColor(Theme.SUB)
+        .width('100%')
+      Text(`解析结果：门 ${this.current.door} / 存在 ${this.current.radarPresence} / 运动 ${this.current.radarMotion}`)
+        .fontSize(11)
+        .fontColor(Theme.TEXT)
+        .width('100%')
+      Text(`SOS ${this.current.sos} / 报警 ${this.current.alarm} / 上报时间 ${this.current.serverTs > 0 ? DateUtil.dateTime(this.current.serverTs) : '未知'}`)
+        .fontSize(11)
+        .fontColor(Theme.TEXT)
+        .width('100%')
+      Text('最近响应原文：')
+        .fontSize(11)
+        .fontColor(Theme.SUB)
+        .width('100%')
+        .margin({ top: 4 })
+      Scroll() {
+        Text(this.lastRaw.length > 0 ? this.lastRaw : '暂无响应')
+          .fontSize(10)
+          .fontColor(Theme.TEXT)
+          .width('100%')
+          .copyOption(CopyOptions.LocalDevice)
+      }
+      .width('100%')
+      .height(150)
+      .backgroundColor('#F7F8FA')
+      .borderRadius(8)
+      .padding(6)
+    }
+    .width('100%')
+    .padding(14)
+    .backgroundColor(Theme.CARD)
+    .borderRadius(14)
+    .alignItems(HorizontalAlign.Start)
   }
 
   @Builder
@@ -299,6 +369,10 @@ export struct RealtimePage {
 
         if (this.showSettings) {
           this.settingsPanel()
+        }
+
+        if (this.showDebug) {
+          this.debugPanel()
         }
 
         // 数据卡片
@@ -378,7 +452,9 @@ export struct RealtimePage {
               title: '设备状态',
               value: this.statusText(),
               icon: '📶',
-              subtitle: this.current.serverTs > 0 ? `最近上报 ${DateUtil.time(this.current.serverTs)}` : '等待数据...',
+              subtitle: this.current.serverTs > 0
+                ? `最近上报 ${DateUtil.time(this.current.serverTs)}`
+                : (this.lastUpdate > 0 ? `最后拉取 ${DateUtil.time(this.lastUpdate)}` : '等待数据...'),
               accent: this.current.online ? Theme.OK : Theme.DANGER
             })
           }.width('48%').margin({ bottom: 12 })
@@ -445,7 +521,7 @@ export struct RealtimePage {
           } else {
             ForEach(this.history, (rec: LatestRecord) => {
               this.historyItem(rec)
-            }, (rec: LatestRecord) => `${rec.id}`)
+            }, (rec: LatestRecord, index: number) => `${rec.id}-${index}`)
           }
         }
         .width('100%')

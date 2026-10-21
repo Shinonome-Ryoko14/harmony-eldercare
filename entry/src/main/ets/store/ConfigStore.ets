@@ -14,6 +14,8 @@ export class ConfigStore {
   private static port: number = Constants.HTTP_DEFAULT_PORT;
   private static deviceNo: number = Constants.HTTP_DEFAULT_DEVICE_NO;
   private static pollMs: number = Constants.HTTP_POLL_INTERVAL;
+  private static baudRate: number = Constants.SERIAL_DEFAULT_BAUD;
+  private static deviceUrl: string = '';
 
   /** 应用启动时调用，加载已保存的配置 */
   static async init(context: common.Context): Promise<void> {
@@ -38,6 +40,14 @@ export class ConfigStore {
       if (typeof mv === 'number' && (mv as number) >= 1000) {
         ConfigStore.pollMs = mv as number;
       }
+      let bv: preferences.ValueType = await store.get('baud_rate', Constants.SERIAL_DEFAULT_BAUD);
+      if (typeof bv === 'number' && (bv as number) > 0) {
+        ConfigStore.baudRate = bv as number;
+      }
+      let uv: preferences.ValueType = await store.get('device_url', '');
+      if (typeof uv === 'string') {
+        ConfigStore.deviceUrl = uv as string;
+      }
     } catch (e) {
       console.error(`配置加载失败: ${JSON.stringify(e)}`);
     }
@@ -57,6 +67,45 @@ export class ConfigStore {
 
   static getPollMs(): number {
     return ConfigStore.pollMs;
+  }
+
+  // ==================== 串口配置 ====================
+
+  static getBaudRate(): number {
+    return ConfigStore.baudRate;
+  }
+
+  /** 设备上报地址（url set 使用），空串表示尚未设置 */
+  static getDeviceUrl(): string {
+    return ConfigStore.deviceUrl;
+  }
+
+  static async saveBaudRate(baud: number): Promise<void> {
+    ConfigStore.baudRate = baud;
+    let store: preferences.Preferences | null = ConfigStore.store;
+    if (store === null) {
+      return;
+    }
+    try {
+      await store.put('baud_rate', baud);
+      await store.flush();
+    } catch (e) {
+      console.error(`波特率保存失败: ${JSON.stringify(e)}`);
+    }
+  }
+
+  static async saveDeviceUrl(url: string): Promise<void> {
+    ConfigStore.deviceUrl = url;
+    let store: preferences.Preferences | null = ConfigStore.store;
+    if (store === null) {
+      return;
+    }
+    try {
+      await store.put('device_url', url);
+      await store.flush();
+    } catch (e) {
+      console.error(`上报地址保存失败: ${JSON.stringify(e)}`);
+    }
   }
 
   /** 保存并持久化 */

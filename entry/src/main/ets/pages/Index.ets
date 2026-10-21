@@ -4,6 +4,7 @@ import { ReportPage } from './ReportPage';
 import { AlertPage } from './AlertPage';
 import { StatsPage } from './StatsPage';
 import { LogPage } from './LogPage';
+import { SettingsPage } from './SettingsPage';
 
 @Entry
 @Component
@@ -53,6 +54,11 @@ struct Index {
         LogPage()
       }
       .tabBar(this.tabItem(4, '📝', '日志'))
+
+      TabContent() {
+        SettingsPage()
+      }
+      .tabBar(this.tabItem(5, '⚙️', '设置'))
     }
     .barMode(BarMode.Fixed)
     .backgroundColor(Theme.BG)
