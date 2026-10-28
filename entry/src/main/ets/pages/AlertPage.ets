@@ -3,6 +3,7 @@ import { DateUtil } from '../common/Protocol';
 import { Theme } from '../common/Theme';
 import { AppStore } from '../store/AppStore';
 import { ConfigStore } from '../store/ConfigStore';
+import { AiBus } from '../store/AiBus';
 import { Repository } from '../data/Repository';
 import { ConnectionBadge } from '../components/ConnectionBadge';
 
@@ -96,6 +97,17 @@ export struct AlertPage {
     this.showDialog = true;
   }
 
+  /** 把告警上下文交给 AI 页解读，并由底部导航自动切换过去 */
+  private askAi(a: AlertRecord): void {
+    let prompt: string = `请解读这条居家安全告警，并给出可执行的处置建议。\n` +
+      `类型：${a.type}\n` +
+      `时间：${DateUtil.dateTime(a.ts)}\n` +
+      `详情：${a.message}\n` +
+      `当前状态：${a.handled === 1 ? `已处置（${a.handleResult}）` : '未处置'}\n` +
+      `请按“风险判断 / 建议步骤 / 是否需要联系家属”三部分回答。`;
+    AiBus.get().ask(prompt, a);
+  }
+
   private async submitHandle(): Promise<void> {
     let result: string = this.resultText.trim();
     if (result.length === 0) {
@@ -173,15 +185,34 @@ export struct AlertPage {
         .margin({ top: 8 })
         .backgroundColor('#F6FBF6')
         .borderRadius(8)
-      } else {
-        Button('填写处置结果')
-          .height(34)
-          .fontSize(14)
-          .backgroundColor(Theme.PRIMARY)
-          .margin({ top: 10 })
+
+        Text('🤖 让 AI 复盘这条告警')
+          .fontSize(12)
+          .fontColor(Theme.PRIMARY)
+          .margin({ top: 8 })
           .onClick(() => {
-            this.openHandle(a);
+            this.askAi(a);
           })
+      } else {
+        Row({ space: 8 }) {
+          Button('AI 解读')
+            .height(34)
+            .fontSize(13)
+            .backgroundColor('#E0F2F1')
+            .fontColor(Theme.PRIMARY)
+            .onClick(() => {
+              this.askAi(a);
+            })
+          Button('填写处置结果')
+            .height(34)
+            .fontSize(13)
+            .backgroundColor(Theme.PRIMARY)
+            .onClick(() => {
+              this.openHandle(a);
+            })
+        }
+        .width('100%')
+        .margin({ top: 10 })
       }
     }
     .width('100%')

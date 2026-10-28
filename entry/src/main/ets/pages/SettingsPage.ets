@@ -3,6 +3,7 @@ import { DateUtil } from '../common/Protocol';
 import { Constants } from '../common/Constants';
 import { ConfigStore } from '../store/ConfigStore';
 import { SerialLogEntry, SerialLogKind, SerialLogListener, UsbPortInfo, UsbSerialService } from '../network/UsbSerialService';
+import { AiConfigPanel } from '../components/AiConfigPanel';
 
 const BAUD_RATES: number[] = [2400, 4800, 9600, 19200, 38400, 115200];
 
@@ -327,6 +328,23 @@ export struct SettingsPage {
         .layoutWeight(1)
     }
     .width('100%')
+  }
+
+  @Builder
+  aiCard() {
+    Column({ space: 10 }) {
+      this.cardTitle('AI 管家模型', '免费模型 · OpenAI 兼容')
+      AiConfigPanel({
+        onSaved: () => {
+          this.toast('AI 配置已保存');
+        }
+      })
+    }
+    .width('100%')
+    .padding(14)
+    .backgroundColor(Theme.CARD)
+    .borderRadius(14)
+    .alignItems(HorizontalAlign.Start)
   }
 
   @Builder
@@ -660,11 +678,12 @@ export struct SettingsPage {
           .fontWeight(FontWeight.Bold)
           .fontColor(Theme.TEXT)
           .width('100%')
-        Text('手机通过 USB OTG 连接开发板，配置 WiFi 与数据上报地址')
+        Text('AI 模型、USB 串口、WiFi 与数据上报地址')
           .fontSize(12)
           .fontColor(Theme.SUB)
           .width('100%')
 
+        this.aiCard()
         this.usbCard()
         this.wifiCard()
         this.urlCard()

@@ -7,12 +7,13 @@ const STORE_CONFIG: relationalStore.StoreConfig = {
 };
 
 /**
- * 数据库版本。所有表都以 device_no（INTEGER）作为设备标识。
- * 版本不一致时重建全部表（本地缓存数据可重新从服务端累积）。
+ * 数据库版本。
+ * v3：新增 AI 会话表 ai_messages（v2 -> v3 走增量迁移，保留业务数据）。
+ * 更低版本（v0/v1）与当前结构差异较大，仍整体重建。
  */
-const DB_VERSION: number = 2;
+const DB_VERSION: number = 3;
 
-const TABLES: string[] = ['activity', 'alerts', 'safety_logs', 'samples'];
+const TABLES: string[] = ['activity', 'alerts', 'safety_logs', 'samples', 'ai_messages'];
 
 const SQL_CREATE_ACTIVITY: string =
   'CREATE TABLE IF NOT EXISTS activity (' +
@@ -50,6 +51,15 @@ const SQL_CREATE_SAMPLES: string =
   'alarm INTEGER NOT NULL DEFAULT 0, alarm_type TEXT NOT NULL DEFAULT \'\', ' +
   'UNIQUE(device_no, remote_id))';
 
+/** AI 对话消息（本地留存最近若干条，便于重启后继续查看） */
+const SQL_CREATE_AI_MESSAGES: string =
+  'CREATE TABLE IF NOT EXISTS ai_messages (' +
+  'id INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+  'device_no INTEGER NOT NULL DEFAULT 0, ' +
+  'role TEXT NOT NULL, ' +
+  'content TEXT NOT NULL, ' +
+  'ts INTEGER NOT NULL)';
+
 /**
  * 关系型数据库（SQLite）初始化与单例获取。
  */
@@ -84,7 +94,7 @@ export class RdbHelper {
     try {
       let store: relationalStore.RdbStore = await relationalStore.getRdbStore(context, STORE_CONFIG);
       if (store.version !== DB_VERSION) {
-        await RdbHelper.recreate(store);
+        await RdbHelper.migrate(store, store.version);
         store.version = DB_VERSION;
       }
       RdbHelper.store = store;
@@ -95,7 +105,21 @@ export class RdbHelper {
     }
   }
 
-  /** 版本升级：清空并重建全部表（设备标识由 ip 迁移为 device_no） */
+  /**
+   * 版本迁移。
+   * v2 -> v3：只新增 ai_messages 表，保留 samples / activity / alerts / safety_logs。
+   * 其他旧版本（含全新库）：结构差异较大，整体重建。
+   */
+  private static async migrate(store: relationalStore.RdbStore, oldVersion: number): Promise<void> {
+    if (oldVersion === 2) {
+      await store.executeSql(SQL_CREATE_AI_MESSAGES);
+      console.info('数据库迁移完成：v2 -> v3（仅新增 AI 会话表）');
+      return;
+    }
+    await RdbHelper.recreate(store);
+  }
+
+  /** 整体重建（仅在结构不兼容的旧版本或全新库时使用） */
   private static async recreate(store: relationalStore.RdbStore): Promise<void> {
     try {
       for (let i: number = 0; i < TABLES.length; i++) {
@@ -105,6 +129,7 @@ export class RdbHelper {
       await store.executeSql(SQL_CREATE_ALERTS);
       await store.executeSql(SQL_CREATE_LOGS);
       await store.executeSql(SQL_CREATE_SAMPLES);
+      await store.executeSql(SQL_CREATE_AI_MESSAGES);
     } catch (err) {
       console.error(`重建数据表失败: ${JSON.stringify(err)}`);
       throw err as Error;

@@ -1,16 +1,37 @@
 import { Theme } from '../common/Theme';
+import { AiBus } from '../store/AiBus';
 import { RealtimePage } from './RealtimePage';
-import { ReportPage } from './ReportPage';
+import { ReportHubPage } from './ReportHubPage';
 import { AlertPage } from './AlertPage';
-import { StatsPage } from './StatsPage';
+import { AssistantPage } from './AssistantPage';
 import { LogPage } from './LogPage';
 import { SettingsPage } from './SettingsPage';
+
+/** AI 管家的 Tab 下标（告警页跳转时使用） */
+const AI_TAB_INDEX: number = 3;
 
 @Entry
 @Component
 struct Index {
   @State currentIndex: number = 0;
   private controller: TabsController = new TabsController();
+
+  private aiBusListener: () => void = () => {
+    // 告警页请求 AI 解读时，自动切到 AI Tab
+    try {
+      this.controller.changeIndex(AI_TAB_INDEX);
+    } catch (e) {
+      console.error(`切换 AI Tab 失败: ${JSON.stringify(e)}`);
+    }
+  };
+
+  aboutToAppear(): void {
+    AiBus.get().subscribe(this.aiBusListener);
+  }
+
+  aboutToDisappear(): void {
+    AiBus.get().unsubscribe(this.aiBusListener);
+  }
 
   @Builder
   tabItem(index: number, icon: string, label: string) {
@@ -36,7 +57,7 @@ struct Index {
       .tabBar(this.tabItem(0, '🏠', '实时'))
 
       TabContent() {
-        ReportPage()
+        ReportHubPage()
       }
       .tabBar(this.tabItem(1, '📊', '报告'))
 
@@ -46,9 +67,9 @@ struct Index {
       .tabBar(this.tabItem(2, '🔔', '告警'))
 
       TabContent() {
-        StatsPage()
+        AssistantPage()
       }
-      .tabBar(this.tabItem(3, '📈', '统计'))
+      .tabBar(this.tabItem(3, '🤖', 'AI'))
 
       TabContent() {
         LogPage()

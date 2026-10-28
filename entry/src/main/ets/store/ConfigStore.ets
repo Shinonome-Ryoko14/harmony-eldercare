@@ -1,6 +1,7 @@
 import preferences from '@ohos.data.preferences';
 import { common } from '@kit.AbilityKit';
 import { Constants } from '../common/Constants';
+import { AiConfig } from '../common/AiTypes';
 
 const STORE_NAME: string = 'eldercare_cfg';
 
@@ -16,6 +17,11 @@ export class ConfigStore {
   private static pollMs: number = Constants.HTTP_POLL_INTERVAL;
   private static baudRate: number = Constants.SERIAL_DEFAULT_BAUD;
   private static deviceUrl: string = '';
+  private static aiBaseUrl: string = Constants.AI_DEFAULT_BASE_URL;
+  private static aiModel: string = Constants.AI_DEFAULT_MODEL;
+  private static aiKey: string = '';
+  private static aiStream: boolean = true;
+  private static aiTemperature: number = Constants.AI_DEFAULT_TEMPERATURE;
 
   /** 应用启动时调用，加载已保存的配置 */
   static async init(context: common.Context): Promise<void> {
@@ -47,6 +53,27 @@ export class ConfigStore {
       let uv: preferences.ValueType = await store.get('device_url', '');
       if (typeof uv === 'string') {
         ConfigStore.deviceUrl = uv as string;
+      }
+
+      let ab: preferences.ValueType = await store.get('ai_base_url', Constants.AI_DEFAULT_BASE_URL);
+      if (typeof ab === 'string' && (ab as string).length > 0) {
+        ConfigStore.aiBaseUrl = ab as string;
+      }
+      let am: preferences.ValueType = await store.get('ai_model', Constants.AI_DEFAULT_MODEL);
+      if (typeof am === 'string' && (am as string).length > 0) {
+        ConfigStore.aiModel = am as string;
+      }
+      let ak: preferences.ValueType = await store.get('ai_key', '');
+      if (typeof ak === 'string') {
+        ConfigStore.aiKey = ak as string;
+      }
+      let asv: preferences.ValueType = await store.get('ai_stream', true);
+      if (typeof asv === 'boolean') {
+        ConfigStore.aiStream = asv as boolean;
+      }
+      let at: preferences.ValueType = await store.get('ai_temperature', Constants.AI_DEFAULT_TEMPERATURE);
+      if (typeof at === 'number' && (at as number) >= 0 && (at as number) <= 2) {
+        ConfigStore.aiTemperature = at as number;
       }
     } catch (e) {
       console.error(`配置加载失败: ${JSON.stringify(e)}`);
@@ -126,6 +153,44 @@ export class ConfigStore {
       await store.flush();
     } catch (e) {
       console.error(`配置保存失败: ${JSON.stringify(e)}`);
+    }
+  }
+
+  // ==================== AI 配置 ====================
+
+  static getAiConfig(): AiConfig {
+    return {
+      baseUrl: ConfigStore.aiBaseUrl,
+      model: ConfigStore.aiModel,
+      apiKey: ConfigStore.aiKey,
+      stream: ConfigStore.aiStream,
+      temperature: ConfigStore.aiTemperature
+    };
+  }
+
+  static hasAiKey(): boolean {
+    return ConfigStore.aiKey.trim().length > 0;
+  }
+
+  static async saveAiConfig(cfg: AiConfig): Promise<void> {
+    ConfigStore.aiBaseUrl = cfg.baseUrl.trim();
+    ConfigStore.aiModel = cfg.model.trim();
+    ConfigStore.aiKey = cfg.apiKey.trim();
+    ConfigStore.aiStream = cfg.stream;
+    ConfigStore.aiTemperature = cfg.temperature;
+    let store: preferences.Preferences | null = ConfigStore.store;
+    if (store === null) {
+      return;
+    }
+    try {
+      await store.put('ai_base_url', ConfigStore.aiBaseUrl);
+      await store.put('ai_model', ConfigStore.aiModel);
+      await store.put('ai_key', ConfigStore.aiKey);
+      await store.put('ai_stream', ConfigStore.aiStream);
+      await store.put('ai_temperature', ConfigStore.aiTemperature);
+      await store.flush();
+    } catch (e) {
+      console.error(`AI 配置保存失败: ${JSON.stringify(e)}`);
     }
   }
 

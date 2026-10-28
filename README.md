@@ -17,6 +17,7 @@
 | **事件闭环管理（评审重点）**：填写处置结果 + 居家安全日志 | `pages/AlertPage.ets`、`pages/LogPage.ets` |
 | 数据统计分析：周/月活动趋势、时段分布、活动量下降风险提示 | `pages/StatsPage.ets`、`pages/ReportPage.ets` |
 | 设备配置：USB OTG 串口下发 WiFi / 上报地址命令 | `pages/SettingsPage.ets`、`network/UsbSerialService.ets` |
+| **AI 管家（新增）**：结合实时/告警/统计对话、解读告警、生成照护简报 | `pages/AssistantPage.ets`、`network/AiService.ets`、`data/AiContext.ets` |
 
 ---
 
@@ -60,15 +61,18 @@ APP 作为 HTTP 客户端，**轮询**局域网内的数据服务器（每次接
 
 ```
 entry/src/main/ets/
-  common/      Constants(服务器默认值/字段候选名/阈值)  Protocol(宽松解析+时间)  Types(数据模型)  Theme(配色)
+  common/      Constants(服务器默认值/字段候选名/阈值/AI提示词)  Protocol(宽松解析+时间)  Types(数据模型)  AiTypes(AI类型/预设)  Theme(配色)
   network/     HttpService(HTTP 轮询 + 解析 + 入库 + 在线判定)
                UsbSerialService(CH340 USB 转串口驱动)
+               AiService(OpenAI 兼容 / SSE 流式 / 自动降级 / 取消)
   data/        RdbHelper(SQLite)  Repository(增删查 + 统计)  RuleEngine(告警规则)
-  store/       AppStore(实时数据全局状态)  ConfigStore(服务器/串口配置持久化)
-  components/  InfoCard(信息卡片)  BarChart(柱状图)  ConnectionBadge(连接状态条)
-  pages/       Index(底部导航) Realtime/Report/Alert/Stats/Log/Settings
+               AiContext(业务上下文 + 本地简报)  AiRepository(AI 会话存储)
+  store/       AppStore(实时数据全局状态)  ConfigStore(服务器/串口/AI 配置持久化)  AiBus(告警->AI 跳转)
+  components/  InfoCard(信息卡片)  BarChart(柱状图)  ConnectionBadge(连接状态条)  AiConfigPanel(模型配置)
+  pages/       Index(底部导航) Realtime/ReportHub/Report/Alert/Assistant/Stats/Log/Settings
   entryability/EntryAbility.ets   (启动时初始化数据库、配置与 HTTP 服务)
 tools/http_simulator.py            (无硬件时的 HTTP 联调模拟服务 + 状态控制台)
+tools/ai_mock_server.py            (无 Key / 无外网时的 OpenAI 兼容 Mock 模型)
 ```
 
 ---
@@ -146,3 +150,54 @@ APP 是 HTTP 客户端，联调只需一个能返回上面 JSON 的服务端：
 
 告警页点“填写处置结果” → 选择快捷语或自行填写 → 保存 →
 写入 `alerts`（标记已处置）与 `safety_logs`（居家安全日志），日志页可历史追溯。
+
+## 九、AI 管家（新增）
+
+底部「AI」Tab 是业务型助手：每次提问都会自动携带**实时传感器数据、今日/昨日活动、近 7 天趋势、最近告警**，
+不需要用户自己描述背景。模型统一走 **OpenAI 兼容协议**，免费模型可随时切换。
+
+> 底部导航调整为：实时 / 报告（含趋势统计）/ 告警 / **AI** / 日志 / 设置。
+
+### 9.1 能做什么
+
+- 自然语言问询：今天情况、活动量变化、告警处理建议、家属通知草稿；
+- 快捷问句 + 流式打字输出 + 停止生成 / 重试 / 复制 / 清空；
+- 告警页「AI 解读」：自动切换到 AI Tab，带着该条告警的完整上下文提问；
+- 回答下方「写入处置记录」：一键把 AI 建议写入 `alerts` 与 `safety_logs`，接入原有事件闭环；
+- 未配置 Key / 断网：未配置 Key 时自动使用本地规则生成今日简报；断网时错误气泡提供「本地简报」按钮，演示不中断。
+
+### 9.2 配置免费模型（推荐智谱 GLM-4-Flash）
+
+1. 打开 [智谱开放平台](https://open.bigmodel.cn) 注册并创建 API Key（`glm-4-flash` 系列免费）；
+2. APP 底部「设置」→「AI 管家模型」，或 AI 页右上角 ⚙️；
+3. 选择预设「智谱 GLM-4-Flash」，粘贴 Key；
+4. 点「测试连接」，成功后再点「保存配置」。
+
+| 配置项 | 默认值 |
+| --- | --- |
+| Base URL | `https://open.bigmodel.cn/api/paas/v4` |
+| 模型名 | `glm-4-flash` |
+| 备用平台 | 硅基流动 `https://api.siliconflow.cn/v1` + `Qwen/Qwen2.5-7B-Instruct` |
+
+> 免费模型有并发 / 频率限制，遇到 429 会提示稍后再试；流式失败会自动降级为非流式请求。
+> API Key 仅保存在本机 preferences，**不要写进代码或提交到 Git**。
+
+### 9.3 无 Key / 无外网联调
+
+```bash
+python3 tools/ai_mock_server.py 8001
+```
+
+在 APP 中选「自定义」，填写：
+
+- Base URL：`http://<电脑局域网IP>:8001/v1`
+- 模型名：`mock-care`
+- API Key：任意非空字符串（如 `test`）
+
+即可验证流式输出、上下文拼装与完整对话流程。
+
+### 9.4 安全与边界
+
+- 只发送聚合后的传感器与统计信息，不发送姓名、地址等个人身份信息；
+- system prompt 明确禁止医疗诊断与处方建议，紧急情况优先提示拨打 120 / 联系家属；
+- AI 回答仅供参考，页面底部固定展示免责声明。

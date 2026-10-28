@@ -61,6 +61,48 @@ export class Constants {
     'createdAt': ['created_at', 'createdAt', 'create_time', 'update_time', 'time', 'timestamp', 'ts']
   };
 
+  // ==================== AI 助手 ====================
+
+  /** 默认模型地址（智谱 GLM，OpenAI 兼容；可在设置页修改） */
+  static readonly AI_DEFAULT_BASE_URL: string = 'https://open.bigmodel.cn/api/paas/v4';
+
+  /** 默认免费模型（永久免费，仅限并发） */
+  static readonly AI_DEFAULT_MODEL: string = 'glm-4-flash';
+
+  /** 默认温度 */
+  static readonly AI_DEFAULT_TEMPERATURE: number = 0.5;
+
+  /** 单次回答最大 token 数，控制免费额度消耗 */
+  static readonly AI_MAX_TOKENS: number = 800;
+
+  /** 携带的历史对话轮数（消息条数） */
+  static readonly AI_HISTORY_TURNS: number = 8;
+
+  /** 连接 / 读取超时(ms)；流式回答可能较慢，读取超时放宽 */
+  static readonly AI_CONNECT_TIMEOUT: number = 15000;
+  static readonly AI_READ_TIMEOUT: number = 90000;
+
+  /** 流式回答的整体看门狗超时(ms) */
+  static readonly AI_STREAM_TIMEOUT: number = 120000;
+
+  /** 两次提问之间的最小间隔(ms)，避免免费模型 429 */
+  static readonly AI_MIN_INTERVAL: number = 1500;
+
+  /** 生成提示词时携带的告警条数 */
+  static readonly AI_CONTEXT_ALERT_LIMIT: number = 8;
+
+  /** 数据库里最多保留的 AI 消息条数（超出不主动清理，仅限制加载） */
+  static readonly AI_HISTORY_LOAD: number = 40;
+
+  /** AI 系统提示词：限定角色、数据依据与安全边界 */
+  static readonly AI_SYSTEM_PROMPT: string =
+    '你是「居家守护」APP 的 AI 管家，服务对象是独居老人的家属和照护者。请遵守以下规则：\n' +
+    '1. 只依据对话中提供的业务数据回答，数据不足时明确说明，绝不编造传感器读数或时间。\n' +
+    '2. 使用简体中文，语气温和、具体、可执行；一般不超过 300 字，可用短段落或编号步骤。\n' +
+    '3. 不做医学诊断，不推荐处方药；涉及身体不适时建议联系家属或及时就医。\n' +
+    '4. 遇到 SOS 求助、设备报警、长时间无活动、设备离线等情况，优先提示立即电话联系老人，必要时拨打 120 或上门查看。\n' +
+    '5. 不回答与居家照护无关的内容，礼貌地把话题拉回老人看护。';
+
   // ==================== USB 串口（CH340） ====================
 
   /** 默认波特率 */
