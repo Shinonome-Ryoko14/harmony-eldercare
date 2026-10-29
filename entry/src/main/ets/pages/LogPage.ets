@@ -71,9 +71,11 @@ export struct LogPage {
       .margin({ top: 8 })
     }
     .width('100%')
-    .padding(16)
+    .padding(15)
     .backgroundColor(Theme.CARD)
-    .borderRadius(14)
+    .borderRadius(16)
+    .border({ width: 1, color: Theme.HAIRLINE })
+    .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
     .alignItems(HorizontalAlign.Start)
   }
 

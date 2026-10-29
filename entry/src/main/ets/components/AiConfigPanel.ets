@@ -110,9 +110,9 @@ export struct AiConfigPanel {
           Text(p.name)
             .fontSize(12)
             .fontColor(this.activePreset === index ? '#FFFFFF' : Theme.PRIMARY)
-            .backgroundColor(this.activePreset === index ? Theme.PRIMARY : '#E0F2F1')
-            .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-            .borderRadius(14)
+            .backgroundColor(this.activePreset === index ? Theme.PRIMARY : Theme.PRIMARY_SOFT)
+            .padding({ left: 10, right: 10, top: 7, bottom: 7 })
+            .borderRadius(9)
             .margin({ right: 8, top: 6 })
             .onClick(() => {
               this.applyPreset(p, index);
@@ -142,6 +142,8 @@ export struct AiConfigPanel {
           .width('100%')
           .height(38)
           .fontSize(13)
+          .backgroundColor(Theme.INPUT)
+          .borderRadius(10)
           .onChange((v: string) => {
             this.baseUrl = v;
             this.activePreset = -1;
@@ -159,6 +161,8 @@ export struct AiConfigPanel {
           .width('100%')
           .height(38)
           .fontSize(13)
+          .backgroundColor(Theme.INPUT)
+          .borderRadius(10)
           .onChange((v: string) => {
             this.model = v;
             this.activePreset = -1;
@@ -176,6 +180,8 @@ export struct AiConfigPanel {
           .width('100%')
           .height(38)
           .fontSize(13)
+          .backgroundColor(Theme.INPUT)
+          .borderRadius(10)
           .type(InputType.Password)
           .showPasswordIcon(true)
           .onChange((v: string) => {
@@ -212,8 +218,9 @@ export struct AiConfigPanel {
           .layoutWeight(1)
           .height(38)
           .fontSize(13)
-          .backgroundColor('#E0F2F1')
+          .backgroundColor(Theme.PRIMARY_SOFT)
           .fontColor(Theme.PRIMARY)
+          .borderRadius(9)
           .enabled(!this.testing)
           .onClick(() => {
             this.test();
@@ -223,6 +230,7 @@ export struct AiConfigPanel {
           .height(38)
           .fontSize(13)
           .backgroundColor(Theme.PRIMARY)
+          .borderRadius(9)
           .onClick(() => {
             this.save();
           })

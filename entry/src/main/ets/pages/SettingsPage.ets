@@ -343,7 +343,9 @@ export struct SettingsPage {
     .width('100%')
     .padding(14)
     .backgroundColor(Theme.CARD)
-    .borderRadius(14)
+    .borderRadius(16)
+    .border({ width: 1, color: Theme.HAIRLINE })
+    .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -367,7 +369,7 @@ export struct SettingsPage {
         Button('刷新')
           .height(34)
           .fontSize(12)
-          .backgroundColor('#E0F2F1')
+          .backgroundColor(Theme.PRIMARY_SOFT)
           .fontColor(Theme.PRIMARY)
           .margin({ left: 8 })
           .onClick(() => {
@@ -409,7 +411,7 @@ export struct SettingsPage {
           .height(38)
           .fontSize(14)
           .enabled(this.connected)
-          .backgroundColor('#FDECEA')
+          .backgroundColor(Theme.DANGER_SOFT)
           .fontColor(Theme.DANGER)
           .onClick(() => {
             this.disconnect();
@@ -441,7 +443,9 @@ export struct SettingsPage {
     .width('100%')
     .padding(14)
     .backgroundColor(Theme.CARD)
-    .borderRadius(14)
+    .borderRadius(16)
+    .border({ width: 1, color: Theme.HAIRLINE })
+    .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -458,6 +462,8 @@ export struct SettingsPage {
           .layoutWeight(1)
           .height(38)
           .fontSize(14)
+          .backgroundColor(Theme.INPUT)
+          .borderRadius(10)
           .onChange((v: string) => {
             this.ssid = v;
           })
@@ -473,6 +479,8 @@ export struct SettingsPage {
           .layoutWeight(1)
           .height(38)
           .fontSize(14)
+          .backgroundColor(Theme.INPUT)
+          .borderRadius(10)
           .type(InputType.Password)
           .showPasswordIcon(true)
           .onChange((v: string) => {
@@ -498,7 +506,9 @@ export struct SettingsPage {
     .width('100%')
     .padding(14)
     .backgroundColor(Theme.CARD)
-    .borderRadius(14)
+    .borderRadius(16)
+    .border({ width: 1, color: Theme.HAIRLINE })
+    .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -515,6 +525,8 @@ export struct SettingsPage {
           .layoutWeight(1)
           .height(38)
           .fontSize(14)
+          .backgroundColor(Theme.INPUT)
+          .borderRadius(10)
           .onChange((v: string) => {
             this.deviceUrl = v;
           })
@@ -526,7 +538,7 @@ export struct SettingsPage {
           .layoutWeight(1)
           .height(36)
           .fontSize(13)
-          .backgroundColor('#E0F2F1')
+          .backgroundColor(Theme.PRIMARY_SOFT)
           .fontColor(Theme.PRIMARY)
           .onClick(() => {
             this.queryUrl();
@@ -543,7 +555,7 @@ export struct SettingsPage {
           .layoutWeight(1)
           .height(36)
           .fontSize(13)
-          .backgroundColor('#FDECEA')
+          .backgroundColor(Theme.DANGER_SOFT)
           .fontColor(Theme.DANGER)
           .onClick(() => {
             this.clearUrl();
@@ -559,7 +571,9 @@ export struct SettingsPage {
     .width('100%')
     .padding(14)
     .backgroundColor(Theme.CARD)
-    .borderRadius(14)
+    .borderRadius(16)
+    .border({ width: 1, color: Theme.HAIRLINE })
+    .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -590,7 +604,7 @@ export struct SettingsPage {
         Button('发送 uart0')
           .height(34)
           .fontSize(12)
-          .backgroundColor('#E0F2F1')
+          .backgroundColor(Theme.PRIMARY_SOFT)
           .fontColor(Theme.PRIMARY)
           .onClick(() => {
             this.sendText('uart0');
@@ -598,7 +612,7 @@ export struct SettingsPage {
         Button('查询 url')
           .height(34)
           .fontSize(12)
-          .backgroundColor('#E0F2F1')
+          .backgroundColor(Theme.PRIMARY_SOFT)
           .fontColor(Theme.PRIMARY)
           .onClick(() => {
             this.queryUrl();
@@ -611,6 +625,8 @@ export struct SettingsPage {
           .layoutWeight(1)
           .height(36)
           .fontSize(13)
+          .backgroundColor(Theme.INPUT)
+          .borderRadius(10)
           .onChange((v: string) => {
             this.rawCmd = v;
           })
@@ -659,14 +675,16 @@ export struct SettingsPage {
       }
       .width('100%')
       .height(220)
-      .backgroundColor('#F7F8FA')
+      .backgroundColor(Theme.CHIP)
       .borderRadius(8)
       .scrollBar(BarState.Auto)
     }
     .width('100%')
     .padding(14)
     .backgroundColor(Theme.CARD)
-    .borderRadius(14)
+    .borderRadius(16)
+    .border({ width: 1, color: Theme.HAIRLINE })
+    .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
     .alignItems(HorizontalAlign.Start)
   }
 

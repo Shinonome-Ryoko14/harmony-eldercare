@@ -6,6 +6,7 @@ import { ConfigStore } from '../store/ConfigStore';
 import { AiBus } from '../store/AiBus';
 import { Repository } from '../data/Repository';
 import { ConnectionBadge } from '../components/ConnectionBadge';
+import { AppIcon } from '../components/AppIcon';
 
 const EMPTY_ALERT: AlertRecord = {
   id: 0,
@@ -135,8 +136,8 @@ export struct AlertPage {
       Row() {
         Row() {
           Column()
-            .width(8)
-            .height(8)
+            .width(7)
+            .height(7)
             .borderRadius(4)
             .backgroundColor(this.levelColor(a.level))
           Text(a.type)
@@ -148,13 +149,14 @@ export struct AlertPage {
         .layoutWeight(1)
 
         Text(a.handled === 1 ? '已处置' : '待处置')
-          .fontSize(12)
+          .fontSize(11)
           .fontColor(a.handled === 1 ? Theme.OK : Theme.DANGER)
-          .padding({ left: 8, right: 8, top: 2, bottom: 2 })
-          .backgroundColor(a.handled === 1 ? '#E8F5E9' : '#FFEBEE')
-          .borderRadius(10)
+          .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+          .backgroundColor(a.handled === 1 ? Theme.OK_SOFT : Theme.DANGER_SOFT)
+          .borderRadius(8)
       }
       .width('100%')
+      .alignItems(VerticalAlign.Center)
 
       Text(a.message)
         .fontSize(13)
@@ -183,23 +185,29 @@ export struct AlertPage {
         .width('100%')
         .padding(10)
         .margin({ top: 8 })
-        .backgroundColor('#F6FBF6')
-        .borderRadius(8)
+        .backgroundColor(Theme.OK_SOFT)
+        .borderRadius(9)
 
-        Text('🤖 让 AI 复盘这条告警')
-          .fontSize(12)
-          .fontColor(Theme.PRIMARY)
-          .margin({ top: 8 })
-          .onClick(() => {
-            this.askAi(a);
-          })
+        Row() {
+          AppIcon({ name: 'ai', size: 13, color: Theme.PRIMARY })
+          Text('让 AI 复盘这条告警')
+            .fontSize(12)
+            .fontColor(Theme.PRIMARY)
+            .margin({ left: 5 })
+        }
+        .margin({ top: 9 })
+        .alignItems(VerticalAlign.Center)
+        .onClick(() => {
+          this.askAi(a);
+        })
       } else {
         Row({ space: 8 }) {
           Button('AI 解读')
             .height(34)
             .fontSize(13)
-            .backgroundColor('#E0F2F1')
+            .backgroundColor(Theme.PRIMARY_SOFT)
             .fontColor(Theme.PRIMARY)
+            .borderRadius(9)
             .onClick(() => {
               this.askAi(a);
             })
@@ -207,6 +215,7 @@ export struct AlertPage {
             .height(34)
             .fontSize(13)
             .backgroundColor(Theme.PRIMARY)
+            .borderRadius(9)
             .onClick(() => {
               this.openHandle(a);
             })
@@ -216,9 +225,11 @@ export struct AlertPage {
       }
     }
     .width('100%')
-    .padding(16)
+    .padding(15)
     .backgroundColor(Theme.CARD)
-    .borderRadius(14)
+    .borderRadius(16)
+    .border({ width: 1, color: Theme.HAIRLINE })
+    .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -251,9 +262,9 @@ export struct AlertPage {
           Text(r)
             .fontSize(12)
             .fontColor(this.resultText === r ? '#FFFFFF' : Theme.PRIMARY)
-            .backgroundColor(this.resultText === r ? Theme.PRIMARY : '#E0F2F1')
-            .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-            .borderRadius(14)
+            .backgroundColor(this.resultText === r ? Theme.PRIMARY : Theme.PRIMARY_SOFT)
+            .padding({ left: 10, right: 10, top: 7, bottom: 7 })
+            .borderRadius(9)
             .margin({ right: 8, top: 8 })
             .onClick(() => {
               this.resultText = r;
@@ -267,6 +278,8 @@ export struct AlertPage {
         .height(80)
         .fontSize(14)
         .margin({ top: 12 })
+        .backgroundColor(Theme.INPUT)
+        .borderRadius(10)
         .onChange((v: string) => {
           this.resultText = v;
         })
@@ -276,6 +289,8 @@ export struct AlertPage {
         .height(40)
         .fontSize(14)
         .margin({ top: 10 })
+        .backgroundColor(Theme.INPUT)
+        .borderRadius(10)
         .onChange((v: string) => {
           this.operatorText = v;
         })
@@ -284,8 +299,9 @@ export struct AlertPage {
         Button('取消')
           .layoutWeight(1)
           .height(42)
-          .backgroundColor('#EEEEEE')
+          .backgroundColor(Theme.CHIP)
           .fontColor(Theme.TEXT)
+          .borderRadius(11)
           .onClick(() => {
             this.showDialog = false;
           })
@@ -293,6 +309,7 @@ export struct AlertPage {
           .layoutWeight(1)
           .height(42)
           .backgroundColor(Theme.PRIMARY)
+          .borderRadius(11)
           .onClick(() => {
             this.submitHandle();
           })
@@ -303,7 +320,9 @@ export struct AlertPage {
     .width('92%')
     .padding(20)
     .backgroundColor(Theme.CARD)
-    .borderRadius(18)
+    .borderRadius(22)
+    .border({ width: 1, color: Theme.HAIRLINE })
+    .shadow({ radius: 28, color: Theme.SHADOW_STRONG, offsetX: 0, offsetY: 12 })
   }
 
   build() {
@@ -318,11 +337,11 @@ export struct AlertPage {
               .layoutWeight(1)
             if (this.pendingCount > 0) {
               Text(`待处置 ${this.pendingCount}`)
-                .fontSize(12)
-                .fontColor('#FFFFFF')
-                .backgroundColor(Theme.DANGER)
-                .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-                .borderRadius(12)
+                .fontSize(11)
+                .fontColor(Theme.DANGER)
+                .backgroundColor(Theme.DANGER_SOFT)
+                .padding({ left: 9, right: 9, top: 4, bottom: 4 })
+                .borderRadius(8)
             }
           }
           .width('100%')
@@ -360,7 +379,8 @@ export struct AlertPage {
         }
         .width('100%')
         .height('100%')
-        .backgroundColor('rgba(0,0,0,0.45)')
+        .backgroundColor('rgba(16, 32, 34, 0.32)')
+        .backdropBlur(8)
         .justifyContent(FlexAlign.Center)
         .alignItems(HorizontalAlign.Center)
       }

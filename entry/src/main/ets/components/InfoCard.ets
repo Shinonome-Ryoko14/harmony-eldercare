@@ -1,6 +1,7 @@
 import { Theme } from '../common/Theme';
+import { AppIcon } from './AppIcon';
 
-/** 通用信息卡片 */
+/** 通用信息卡片：毛玻璃底 + 发丝描边 + 单色图标 */
 @Component
 export struct InfoCard {
   @Prop title: string = '';
@@ -14,44 +15,54 @@ export struct InfoCard {
     Column() {
       Row() {
         if (this.icon.length > 0) {
-          Text(this.icon)
-            .fontSize(20)
-            .margin({ right: 6 })
+          Stack() {
+            AppIcon({ name: this.icon, size: 14, color: this.accent, weight: 1.8 })
+          }
+          .width(26)
+          .height(26)
+          .borderRadius(9)
+          .backgroundColor(Theme.alpha(this.accent, 0.10))
+          .margin({ right: 7 })
         }
         Text(this.title)
-          .fontSize(14)
+          .fontSize(13)
           .fontColor(Theme.SUB)
           .layoutWeight(1)
       }
       .width('100%')
+      .alignItems(VerticalAlign.Center)
 
       Row() {
         Text(this.value)
-          .fontSize(28)
+          .fontSize(26)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.accent)
         if (this.unit.length > 0) {
           Text(this.unit)
-            .fontSize(14)
+            .fontSize(13)
             .fontColor(Theme.SUB)
-            .margin({ left: 4, bottom: 4 })
+            .margin({ left: 3, bottom: 4 })
         }
       }
       .alignItems(VerticalAlign.Bottom)
       .width('100%')
-      .margin({ top: 8 })
+      .margin({ top: 10 })
 
       if (this.subtitle.length > 0) {
         Text(this.subtitle)
-          .fontSize(12)
+          .fontSize(11)
           .fontColor(Theme.SUB)
           .width('100%')
-          .margin({ top: 6 })
+          .margin({ top: 5 })
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
     }
-    .padding(16)
+    .padding(14)
     .backgroundColor(Theme.CARD)
-    .borderRadius(14)
+    .borderRadius(18)
+    .border({ width: 1, color: Theme.HAIRLINE })
+    .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
     .width('100%')
     .alignItems(HorizontalAlign.Start)
   }

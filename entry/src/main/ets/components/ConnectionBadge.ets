@@ -10,16 +10,27 @@ export struct ConnectionBadge {
   build() {
     Column() {
       Row() {
-        Column()
-          .width(8)
-          .height(8)
-          .borderRadius(4)
-          .backgroundColor(this.ok ? Theme.OK : Theme.DANGER)
-        Text(this.message)
-          .fontSize(12)
-          .fontColor(this.ok ? Theme.OK : Theme.DANGER)
-          .margin({ left: 6 })
-          .layoutWeight(1)
+        Row() {
+          Column()
+            .width(7)
+            .height(7)
+            .borderRadius(4)
+            .backgroundColor(this.ok ? Theme.OK : Theme.DANGER)
+          Text(this.message)
+            .fontSize(12)
+            .fontColor(this.ok ? Theme.OK : Theme.DANGER)
+            .margin({ left: 6 })
+        }
+        .layoutWeight(1)
+        .alignItems(VerticalAlign.Center)
+
+        Text('HTTP')
+          .fontSize(9)
+          .fontColor(Theme.SUB)
+          .letterSpacing(0.6)
+          .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+          .backgroundColor(Theme.CHIP)
+          .borderRadius(5)
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
@@ -35,9 +46,10 @@ export struct ConnectionBadge {
       }
     }
     .width('100%')
-    .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-    .backgroundColor(Theme.CARD)
+    .padding({ left: 12, right: 12, top: 9, bottom: 9 })
+    .backgroundColor(Theme.GLASS)
     .borderRadius(12)
+    .border({ width: 1, color: Theme.HAIRLINE })
     .alignItems(HorizontalAlign.Start)
   }
 }

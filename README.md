@@ -61,14 +61,14 @@ APP 作为 HTTP 客户端，**轮询**局域网内的数据服务器（每次接
 
 ```
 entry/src/main/ets/
-  common/      Constants(服务器默认值/字段候选名/阈值/AI提示词)  Protocol(宽松解析+时间)  Types(数据模型)  AiTypes(AI类型/预设)  Theme(配色)
+  common/      Constants(服务器默认值/字段候选名/阈值/AI提示词)  Protocol(宽松解析+时间)  Types(数据模型)  AiTypes(AI类型/预设)  Theme(配色/玻璃质感参数)
   network/     HttpService(HTTP 轮询 + 解析 + 入库 + 在线判定)
                UsbSerialService(CH340 USB 转串口驱动)
                AiService(OpenAI 兼容 / SSE 流式 / 自动降级 / 取消)
   data/        RdbHelper(SQLite)  Repository(增删查 + 统计)  RuleEngine(告警规则)
                AiContext(业务上下文 + 本地简报)  AiRepository(AI 会话存储)
   store/       AppStore(实时数据全局状态)  ConfigStore(服务器/串口/AI 配置持久化)  AiBus(告警->AI 跳转)
-  components/  InfoCard(信息卡片)  BarChart(柱状图)  ConnectionBadge(连接状态条)  AiConfigPanel(模型配置)
+  components/  AppIcon(统一线性图标)  InfoCard(信息卡片)  BarChart(柱状图)  ConnectionBadge(连接状态条)  AiConfigPanel(模型配置)
   pages/       Index(底部导航) Realtime/ReportHub/Report/Alert/Assistant/Stats/Log/Settings
   entryability/EntryAbility.ets   (启动时初始化数据库、配置与 HTTP 服务)
 tools/http_simulator.py            (无硬件时的 HTTP 联调模拟服务 + 状态控制台)
@@ -169,7 +169,7 @@ APP 是 HTTP 客户端，联调只需一个能返回上面 JSON 的服务端：
 ### 9.2 配置免费模型（推荐智谱 GLM-4-Flash）
 
 1. 打开 [智谱开放平台](https://open.bigmodel.cn) 注册并创建 API Key（`glm-4-flash` 系列免费）；
-2. APP 底部「设置」→「AI 管家模型」，或 AI 页右上角 ⚙️；
+2. APP 底部「设置」→「AI 管家模型」，或 AI 页右上角设置按钮；
 3. 选择预设「智谱 GLM-4-Flash」，粘贴 Key；
 4. 点「测试连接」，成功后再点「保存配置」。
 

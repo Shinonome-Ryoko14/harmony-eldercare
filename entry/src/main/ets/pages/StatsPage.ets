@@ -5,6 +5,7 @@ import { ConfigStore } from '../store/ConfigStore';
 import { Repository } from '../data/Repository';
 import { BarChart } from '../components/BarChart';
 import { ConnectionBadge } from '../components/ConnectionBadge';
+import { AppIcon } from '../components/AppIcon';
 
 @Component
 export struct StatsPage {
@@ -96,25 +97,46 @@ export struct StatsPage {
           serverUrl: ConfigStore.baseUrl()
         })
 
-        Row({ space: 8 }) {
-          Text('本周趋势')
-            .fontSize(14)
-            .fontColor(this.showMonth ? Theme.SUB : '#FFFFFF')
-            .backgroundColor(this.showMonth ? Theme.CARD : Theme.PRIMARY)
-            .padding({ left: 16, right: 16, top: 8, bottom: 8 })
-            .borderRadius(18)
-            .onClick(() => {
-              this.showMonth = false;
-            })
-          Text('近30天趋势')
-            .fontSize(14)
-            .fontColor(this.showMonth ? '#FFFFFF' : Theme.SUB)
-            .backgroundColor(this.showMonth ? Theme.PRIMARY : Theme.CARD)
-            .padding({ left: 16, right: 16, top: 8, bottom: 8 })
-            .borderRadius(18)
-            .onClick(() => {
-              this.showMonth = true;
-            })
+        Row() {
+          Row({ space: 2 }) {
+            Text('本周趋势')
+              .fontSize(13)
+              .fontColor(this.showMonth ? Theme.SUB : Theme.TEXT)
+              .fontWeight(this.showMonth ? FontWeight.Normal : FontWeight.Medium)
+              .backgroundColor(this.showMonth ? Color.Transparent : Theme.CARD_SOLID)
+              .padding({ left: 14, right: 14, top: 7, bottom: 7 })
+              .borderRadius(9)
+              .shadow({
+                radius: this.showMonth ? 0 : 6,
+                color: Theme.SHADOW,
+                offsetX: 0,
+                offsetY: 2
+              })
+              .onClick(() => {
+                this.showMonth = false;
+              })
+            Text('近30天趋势')
+              .fontSize(13)
+              .fontColor(this.showMonth ? Theme.TEXT : Theme.SUB)
+              .fontWeight(this.showMonth ? FontWeight.Medium : FontWeight.Normal)
+              .backgroundColor(this.showMonth ? Theme.CARD_SOLID : Color.Transparent)
+              .padding({ left: 14, right: 14, top: 7, bottom: 7 })
+              .borderRadius(9)
+              .shadow({
+                radius: this.showMonth ? 6 : 0,
+                color: Theme.SHADOW,
+                offsetX: 0,
+                offsetY: 2
+              })
+              .onClick(() => {
+                this.showMonth = true;
+              })
+          }
+          .padding(4)
+          .backgroundColor(Theme.CHIP)
+          .borderRadius(12)
+
+          Blank()
         }
         .width('100%')
 
@@ -135,7 +157,9 @@ export struct StatsPage {
         }
         .padding(16)
         .backgroundColor(Theme.CARD)
-        .borderRadius(14)
+        .borderRadius(16)
+        .border({ width: 1, color: Theme.HAIRLINE })
+        .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
         .width('100%')
         .alignItems(HorizontalAlign.Start)
 
@@ -148,13 +172,20 @@ export struct StatsPage {
         }
         .padding(16)
         .backgroundColor(Theme.CARD)
-        .borderRadius(14)
+        .borderRadius(16)
+        .border({ width: 1, color: Theme.HAIRLINE })
+        .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
         .width('100%')
 
         if (this.risk.length > 0) {
           Row() {
-            Text('⚠️')
-              .fontSize(18)
+            Stack() {
+              AppIcon({ name: 'warning', size: 16, color: Theme.WARN })
+            }
+            .width(30)
+            .height(30)
+            .borderRadius(9)
+            .backgroundColor(Theme.CARD)
             Column() {
               Text('活动量下降风险提示')
                 .fontSize(14)
@@ -166,13 +197,14 @@ export struct StatsPage {
                 .margin({ top: 4 })
             }
             .layoutWeight(1)
-            .margin({ left: 8 })
+            .margin({ left: 9 })
             .alignItems(HorizontalAlign.Start)
           }
           .width('100%')
           .padding(14)
-          .backgroundColor('#FFF3E0')
-          .borderRadius(12)
+          .backgroundColor(Theme.WARN_SOFT)
+          .borderRadius(14)
+          .border({ width: 1, color: Theme.alpha(Theme.WARN, 0.14) })
           .alignItems(VerticalAlign.Top)
         }
       }

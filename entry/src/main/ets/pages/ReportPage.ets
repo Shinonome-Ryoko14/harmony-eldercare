@@ -5,6 +5,7 @@ import { ConfigStore } from '../store/ConfigStore';
 import { Repository } from '../data/Repository';
 import { BarChart } from '../components/BarChart';
 import { ConnectionBadge } from '../components/ConnectionBadge';
+import { AppIcon } from '../components/AppIcon';
 
 function defaultReport(): ReportData {
   let hourly: HourStat[] = [];
@@ -97,7 +98,9 @@ export struct ReportPage {
     .layoutWeight(1)
     .padding(16)
     .backgroundColor(Theme.CARD)
-    .borderRadius(14)
+    .borderRadius(16)
+    .border({ width: 1, color: Theme.HAIRLINE })
+    .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
   }
 
   build() {
@@ -149,7 +152,9 @@ export struct ReportPage {
         }
         .padding(16)
         .backgroundColor(Theme.CARD)
-        .borderRadius(14)
+        .borderRadius(16)
+        .border({ width: 1, color: Theme.HAIRLINE })
+        .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
         .width('100%')
         .alignItems(HorizontalAlign.Start)
 
@@ -170,24 +175,33 @@ export struct ReportPage {
         }
         .padding(16)
         .backgroundColor(Theme.CARD)
-        .borderRadius(14)
+        .borderRadius(16)
+        .border({ width: 1, color: Theme.HAIRLINE })
+        .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
         .width('100%')
         .alignItems(HorizontalAlign.Start)
 
         if (this.report.today > 0 && this.report.today < this.report.yesterday) {
           Row() {
-            Text('⚠️')
-              .fontSize(18)
+            Stack() {
+              AppIcon({ name: 'warning', size: 16, color: Theme.WARN })
+            }
+            .width(30)
+            .height(30)
+            .borderRadius(9)
+            .backgroundColor(Theme.CARD)
             Text('今日活动量低于昨日，请关注老人状态，必要时电话问候。')
               .fontSize(13)
               .fontColor(Theme.WARN)
-              .margin({ left: 8 })
+              .margin({ left: 9 })
               .layoutWeight(1)
           }
           .width('100%')
           .padding(14)
-          .backgroundColor('#FFF3E0')
-          .borderRadius(12)
+          .backgroundColor(Theme.WARN_SOFT)
+          .borderRadius(14)
+          .border({ width: 1, color: Theme.alpha(Theme.WARN, 0.14) })
+          .alignItems(VerticalAlign.Center)
         }
       }
       .padding(16)

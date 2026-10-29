@@ -10,6 +10,7 @@ import { AiContext, CareSnapshot } from '../data/AiContext';
 import { AiRepository } from '../data/AiRepository';
 import { Repository } from '../data/Repository';
 import { AiConfigPanel } from '../components/AiConfigPanel';
+import { AppIcon } from '../components/AppIcon';
 import { pasteboard } from '@kit.BasicServicesKit';
 
 const QUICK_PROMPTS: string[] = [
@@ -247,7 +248,7 @@ export struct AssistantPage {
     }
 
     if (!ConfigStore.hasAiKey()) {
-      let prefix: string = '未配置模型 API Key，以下是本地规则生成的简报。点右上角 ⚙️ 可接入免费模型。\n\n';
+      let prefix: string = '未配置模型 API Key，以下是本地规则生成的简报。点右上角的设置按钮可接入免费模型。\n\n';
       let local: string = AiContext.brief(snap);
       if (q.indexOf('通知') >= 0 || q.indexOf('家属') >= 0) {
         local = AiContext.notice(snap);
@@ -606,15 +607,20 @@ export struct AssistantPage {
         .onClick(() => {
           this.clearChat();
         })
-      Text('⚙️')
-        .fontSize(20)
-        .padding(6)
-        .onClick(() => {
-          this.showConfig = true;
-        })
+      Stack() {
+        AppIcon({ name: 'settings', size: 17, color: Theme.TEXT })
+      }
+      .width(34)
+      .height(34)
+      .borderRadius(11)
+      .backgroundColor(Theme.CHIP)
+      .margin({ left: 2 })
+      .onClick(() => {
+        this.showConfig = true;
+      })
     }
     .width('100%')
-    .padding({ left: 16, right: 10, top: 12, bottom: 8 })
+    .padding({ left: 16, right: 12, top: 12, bottom: 8 })
     .alignItems(VerticalAlign.Center)
   }
 
@@ -622,9 +628,21 @@ export struct AssistantPage {
   welcome() {
     Scroll() {
       Column({ space: 12 }) {
-        Text('🤖')
-          .fontSize(46)
-          .margin({ top: 18 })
+        Stack() {
+          Row()
+            .width(82)
+            .height(82)
+            .borderRadius(41)
+            .linearGradient({
+              angle: 145,
+              colors: [[Theme.PRIMARY_SOFT, 0.0], [Theme.alpha(Theme.PRIMARY, 0.16), 1.0]]
+            })
+          AppIcon({ name: 'ai', size: 34, color: Theme.PRIMARY, weight: 1.5 })
+        }
+        .width(82)
+        .height(82)
+        .margin({ top: 20 })
+
         Text('居家守护 AI 管家')
           .fontSize(20)
           .fontWeight(FontWeight.Bold)
@@ -636,8 +654,13 @@ export struct AssistantPage {
           .textAlign(TextAlign.Center)
 
         Row({ space: 8 }) {
-          Text('📡')
-            .fontSize(14)
+          Stack() {
+            AppIcon({ name: 'signal', size: 13, color: Theme.PRIMARY })
+          }
+          .width(24)
+          .height(24)
+          .borderRadius(8)
+          .backgroundColor(Theme.PRIMARY_SOFT)
           Text(this.liveSummary)
             .fontSize(12)
             .fontColor(Theme.SUB)
@@ -646,7 +669,8 @@ export struct AssistantPage {
         .width('100%')
         .padding(12)
         .backgroundColor(Theme.CARD)
-        .borderRadius(12)
+        .borderRadius(14)
+        .border({ width: 1, color: Theme.HAIRLINE })
         .alignItems(VerticalAlign.Center)
 
         if (!this.hasKey) {
@@ -668,7 +692,7 @@ export struct AssistantPage {
               .fontColor('#FFFFFF')
               .backgroundColor(Theme.PRIMARY)
               .padding({ left: 12, right: 12, top: 7, bottom: 7 })
-              .borderRadius(15)
+              .borderRadius(9)
               .onClick(() => {
                 this.showConfig = true;
               })
@@ -676,7 +700,8 @@ export struct AssistantPage {
           .width('100%')
           .padding(14)
           .backgroundColor(Theme.CARD)
-          .borderRadius(14)
+          .borderRadius(16)
+          .border({ width: 1, color: Theme.HAIRLINE })
           .alignItems(VerticalAlign.Center)
         }
 
@@ -690,9 +715,9 @@ export struct AssistantPage {
               Text(q)
                 .fontSize(13)
                 .fontColor(Theme.PRIMARY)
-                .backgroundColor('#E0F2F1')
+                .backgroundColor(Theme.PRIMARY_SOFT)
                 .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-                .borderRadius(16)
+                .borderRadius(10)
                 .margin({ right: 8, top: 6 })
                 .onClick(() => {
                   this.sendQuick(q);
@@ -704,20 +729,26 @@ export struct AssistantPage {
         .width('100%')
         .padding(14)
         .backgroundColor(Theme.CARD)
-        .borderRadius(14)
+        .borderRadius(16)
+        .border({ width: 1, color: Theme.HAIRLINE })
         .alignItems(HorizontalAlign.Start)
 
-        Text('生成本地照护简报（无需 Key）')
-          .fontSize(13)
-          .fontColor(Theme.PRIMARY_DARK)
-          .width('100%')
-          .textAlign(TextAlign.Center)
-          .padding(12)
-          .backgroundColor(Theme.CARD)
-          .borderRadius(14)
-          .onClick(() => {
-            this.sendLocalBrief();
-          })
+        Row() {
+          AppIcon({ name: 'doc', size: 14, color: Theme.PRIMARY_DARK })
+          Text('生成本地照护简报（无需 Key）')
+            .fontSize(13)
+            .fontColor(Theme.PRIMARY_DARK)
+            .margin({ left: 6 })
+        }
+        .width('100%')
+        .justifyContent(FlexAlign.Center)
+        .padding(12)
+        .backgroundColor(Theme.GLASS)
+        .borderRadius(14)
+        .border({ width: 1, color: Theme.HAIRLINE })
+        .onClick(() => {
+          this.sendLocalBrief();
+        })
 
         Text('AI 建议仅供参考，紧急情况请立即拨打 120 或联系家属。')
           .fontSize(10)
@@ -737,10 +768,15 @@ export struct AssistantPage {
   bubble(m: UiMessage) {
     Row() {
       if (m.role === 'assistant') {
-        Text('🤖')
-          .fontSize(20)
-          .margin({ right: 6, top: 2 })
-          .alignSelf(ItemAlign.Start)
+        Stack() {
+          AppIcon({ name: 'ai', size: 14, color: Theme.PRIMARY })
+        }
+        .width(26)
+        .height(26)
+        .borderRadius(9)
+        .backgroundColor(Theme.PRIMARY_SOFT)
+        .margin({ right: 8, top: 2 })
+        .alignSelf(ItemAlign.Start)
       }
       Column({ space: 0 }) {
         if (m.role === 'assistant' && m.streaming && m.content.length === 0) {
@@ -753,45 +789,72 @@ export struct AssistantPage {
             .lineHeight(21)
             .fontColor(m.role === 'user' ? '#FFFFFF' : (m.error ? Theme.DANGER : Theme.TEXT))
             .textAlign(TextAlign.Start)
+            .copyOption(CopyOptions.LocalDevice)
         }
 
         if (m.role === 'assistant' && !m.streaming) {
           Row({ space: 14 }) {
-            Text('复制')
-              .fontSize(11)
-              .fontColor(Theme.SUB)
-              .onClick(() => {
-                this.copyText(m.content);
-              })
+            Row() {
+              AppIcon({ name: 'copy', size: 11, color: Theme.SUB })
+              Text('复制')
+                .fontSize(11)
+                .fontColor(Theme.SUB)
+                .margin({ left: 3 })
+            }
+            .onClick(() => {
+              this.copyText(m.content);
+            })
+
             if (m.error) {
-              Text('重试')
-                .fontSize(11)
-                .fontColor(Theme.PRIMARY)
-                .onClick(() => {
-                  this.retry();
-                })
-              Text('本地简报')
-                .fontSize(11)
-                .fontColor(Theme.PRIMARY_DARK)
-                .onClick(() => {
-                  this.sendLocalBrief();
-                })
+              Row() {
+                AppIcon({ name: 'retry', size: 11, color: Theme.PRIMARY })
+                Text('重试')
+                  .fontSize(11)
+                  .fontColor(Theme.PRIMARY)
+                  .margin({ left: 3 })
+              }
+              .onClick(() => {
+                this.retry();
+              })
+
+              Row() {
+                AppIcon({ name: 'doc', size: 11, color: Theme.PRIMARY_DARK })
+                Text('本地简报')
+                  .fontSize(11)
+                  .fontColor(Theme.PRIMARY_DARK)
+                  .margin({ left: 3 })
+              }
+              .onClick(() => {
+                this.sendLocalBrief();
+              })
             }
             if (m.adoptable) {
-              Text('写入处置记录')
-                .fontSize(11)
-                .fontColor(Theme.PRIMARY_DARK)
-                .onClick(() => {
-                  this.adopt(m);
-                })
+              Row() {
+                AppIcon({ name: 'check', size: 11, color: Theme.PRIMARY_DARK })
+                Text('写入处置记录')
+                  .fontSize(11)
+                  .fontColor(Theme.PRIMARY_DARK)
+                  .margin({ left: 3 })
+              }
+              .onClick(() => {
+                this.adopt(m);
+              })
             }
           }
           .margin({ top: 8 })
+          .alignItems(VerticalAlign.Center)
         }
       }
       .padding(12)
       .backgroundColor(m.role === 'user' ? Theme.PRIMARY : Theme.CARD)
-      .borderRadius(14)
+      .borderRadius({
+        topLeft: m.role === 'user' ? 16 : 6,
+        topRight: m.role === 'user' ? 6 : 16,
+        bottomLeft: 16,
+        bottomRight: 16
+      })
+      .border({ width: m.role === 'user' ? 0 : 1, color: Theme.HAIRLINE })
+      .shadow({ radius: 10, color: Theme.SHADOW, offsetX: 0, offsetY: 3 })
       .constraintSize({ maxWidth: '78%' })
       .alignItems(HorizontalAlign.Start)
     }
@@ -803,13 +866,13 @@ export struct AssistantPage {
   @Builder
   inputBar() {
     Column() {
-      Row({ space: 8 }) {
+      Row({ space: 10 }) {
         TextInput({ placeholder: this.generating ? '正在生成…' : '问问 AI 管家…', text: this.input })
           .layoutWeight(1)
           .height(42)
           .fontSize(14)
-          .backgroundColor('#F5F6F7')
-          .borderRadius(21)
+          .backgroundColor(Theme.INPUT)
+          .borderRadius(12)
           .padding({ left: 14, right: 14 })
           .enabled(!this.generating)
           .onChange((v: string) => {
@@ -818,19 +881,27 @@ export struct AssistantPage {
           .onSubmit(() => {
             this.send();
           })
-        Button(this.generating ? '停止' : '发送')
-          .width(66)
-          .height(42)
-          .fontSize(14)
-          .backgroundColor(this.generating ? Theme.DANGER : Theme.PRIMARY)
-          .enabled(this.generating || this.input.trim().length > 0)
-          .onClick(() => {
-            if (this.generating) {
-              this.stop();
-            } else {
-              this.send();
-            }
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          AppIcon({
+            name: this.generating ? 'stop' : 'send',
+            size: 18,
+            color: '#FFFFFF',
+            weight: 1.8,
+            filled: this.generating
           })
+        }
+        .width(42)
+        .height(42)
+        .backgroundColor(this.generating ? Theme.DANGER : Theme.PRIMARY)
+        .opacity(this.generating || this.input.trim().length > 0 ? 1 : 0.45)
+        .enabled(this.generating || this.input.trim().length > 0)
+        .onClick(() => {
+          if (this.generating) {
+            this.stop();
+          } else {
+            this.send();
+          }
+        })
       }
       .width('100%')
 
@@ -840,8 +911,9 @@ export struct AssistantPage {
         .margin({ top: 6 })
     }
     .width('100%')
-    .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-    .backgroundColor(Theme.CARD)
+    .padding({ left: 12, right: 12, top: 9, bottom: 9 })
+    .backgroundColor(Theme.GLASS)
+    .border({ width: { top: 1 }, color: Theme.HAIRLINE })
   }
 
   @Builder
@@ -881,12 +953,15 @@ export struct AssistantPage {
       .height('78%')
       .padding(18)
       .backgroundColor(Theme.CARD)
-      .borderRadius(18)
+      .borderRadius(22)
+      .border({ width: 1, color: Theme.HAIRLINE })
+      .shadow({ radius: 28, color: Theme.SHADOW_STRONG, offsetX: 0, offsetY: 12 })
       .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('rgba(0,0,0,0.45)')
+    .backgroundColor('rgba(16, 32, 34, 0.32)')
+    .backdropBlur(8)
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
   }

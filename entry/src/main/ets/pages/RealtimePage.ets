@@ -6,6 +6,7 @@ import { AppStore, StoreListener } from '../store/AppStore';
 import { ConfigStore } from '../store/ConfigStore';
 import { HttpService } from '../network/HttpService';
 import { InfoCard } from '../components/InfoCard';
+import { AppIcon } from '../components/AppIcon';
 
 const EMPTY_DEVICE: DeviceData = {
   deviceNo: 0,
@@ -129,6 +130,8 @@ export struct RealtimePage {
           .layoutWeight(1)
           .height(38)
           .fontSize(14)
+          .backgroundColor(Theme.INPUT)
+          .borderRadius(10)
           .onChange((v: string) => {
             this.hostInput = v;
           })
@@ -144,6 +147,8 @@ export struct RealtimePage {
           .layoutWeight(1)
           .height(38)
           .fontSize(14)
+          .backgroundColor(Theme.INPUT)
+          .borderRadius(10)
           .type(InputType.Number)
           .onChange((v: string) => {
             this.portInput = v;
@@ -160,6 +165,8 @@ export struct RealtimePage {
           .layoutWeight(1)
           .height(38)
           .fontSize(14)
+          .backgroundColor(Theme.INPUT)
+          .borderRadius(10)
           .type(InputType.Number)
           .onChange((v: string) => {
             this.deviceInput = v;
@@ -173,6 +180,7 @@ export struct RealtimePage {
           .height(38)
           .fontSize(14)
           .backgroundColor(Theme.PRIMARY)
+          .borderRadius(10)
           .onClick(() => {
             this.saveConfig();
           })
@@ -180,8 +188,9 @@ export struct RealtimePage {
           .layoutWeight(1)
           .height(38)
           .fontSize(14)
-          .backgroundColor('#E0F2F1')
+          .backgroundColor(Theme.PRIMARY_SOFT)
           .fontColor(Theme.PRIMARY)
+          .borderRadius(10)
           .onClick(() => {
             HttpService.get().refresh();
             this.toast('已发起刷新');
@@ -197,7 +206,9 @@ export struct RealtimePage {
     .width('100%')
     .padding(14)
     .backgroundColor(Theme.CARD)
-    .borderRadius(14)
+    .borderRadius(16)
+    .border({ width: 1, color: Theme.HAIRLINE })
+    .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -206,8 +217,8 @@ export struct RealtimePage {
     Column({ space: 4 }) {
       Row() {
         Column()
-          .width(8)
-          .height(8)
+          .width(7)
+          .height(7)
           .borderRadius(4)
           .backgroundColor(this.fetchOk ? Theme.OK : Theme.DANGER)
         Text(this.fetchMsg)
@@ -215,7 +226,7 @@ export struct RealtimePage {
           .fontColor(this.fetchOk ? Theme.OK : Theme.DANGER)
           .margin({ left: 6 })
           .layoutWeight(1)
-        Text(this.showSettings ? '收起设置 ▲' : '服务器设置 ▼')
+        Text(this.showSettings ? '收起设置' : '服务器设置')
           .fontSize(12)
           .fontColor(Theme.PRIMARY)
           .onClick(() => {
@@ -230,9 +241,9 @@ export struct RealtimePage {
           .fontSize(11)
           .fontColor(Theme.SUB)
           .layoutWeight(1)
-        Text(this.showDebug ? '收起调试 ▲' : '接口调试 ▼')
+        Text(this.showDebug ? '收起调试' : '接口调试')
           .fontSize(11)
-          .fontColor(Theme.PRIMARY)
+          .fontColor(Theme.SUB)
           .onClick(() => {
             this.showDebug = !this.showDebug;
           })
@@ -241,9 +252,10 @@ export struct RealtimePage {
       .alignItems(VerticalAlign.Center)
     }
     .width('100%')
-    .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-    .backgroundColor(Theme.CARD)
+    .padding({ left: 12, right: 12, top: 9, bottom: 9 })
+    .backgroundColor(Theme.GLASS)
     .borderRadius(12)
+    .border({ width: 1, color: Theme.HAIRLINE })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -285,14 +297,15 @@ export struct RealtimePage {
       }
       .width('100%')
       .height(150)
-      .backgroundColor('#F7F8FA')
+      .backgroundColor(Theme.CHIP)
       .borderRadius(8)
       .padding(6)
     }
     .width('100%')
     .padding(14)
     .backgroundColor(Theme.CARD)
-    .borderRadius(14)
+    .borderRadius(16)
+    .border({ width: 1, color: Theme.HAIRLINE })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -382,7 +395,7 @@ export struct RealtimePage {
               title: '室内温度',
               value: this.current.temp.toFixed(1),
               unit: '℃',
-              icon: '🌡️',
+              icon: 'temp',
               accent: this.tempAccent()
             })
           }.width('48%').margin({ bottom: 12 })
@@ -392,7 +405,7 @@ export struct RealtimePage {
               title: '室内湿度',
               value: this.current.humi.toFixed(0),
               unit: '%',
-              icon: '💧',
+              icon: 'humidity',
               accent: Theme.PRIMARY
             })
           }.width('48%').margin({ bottom: 12 })
@@ -401,7 +414,7 @@ export struct RealtimePage {
             InfoCard({
               title: '门窗状态',
               value: this.current.door === 1 ? '开启' : '关闭',
-              icon: '🚪',
+              icon: 'door',
               subtitle: this.current.door === 1 ? '请留意门窗是否关好' : '门窗处于关闭状态',
               accent: this.current.door === 1 ? Theme.WARN : Theme.OK
             })
@@ -411,7 +424,7 @@ export struct RealtimePage {
             InfoCard({
               title: '雷达存在',
               value: this.current.radarPresence === 1 ? '有人' : '无人',
-              icon: '🛰️',
+              icon: 'presence',
               subtitle: '人体存在检测',
               accent: this.current.radarPresence === 1 ? Theme.OK : Theme.SUB
             })
@@ -421,7 +434,7 @@ export struct RealtimePage {
             InfoCard({
               title: '雷达运动',
               value: this.current.radarMotion === 1 ? '运动中' : '静止',
-              icon: '🏃',
+              icon: 'motion',
               subtitle: this.current.lastActive > 0 ? `最后活动 ${DateUtil.relative(this.current.lastActive)}` : '暂无活动',
               accent: this.current.radarMotion === 1 ? Theme.PRIMARY : Theme.SUB
             })
@@ -431,7 +444,7 @@ export struct RealtimePage {
             InfoCard({
               title: '紧急求助',
               value: this.current.sos === 1 ? '求助中' : '正常',
-              icon: '🆘',
+              icon: 'sos',
               subtitle: this.current.sos === 1 ? '老人已按下SOS按钮！' : '未触发',
               accent: this.current.sos === 1 ? Theme.DANGER : Theme.OK
             })
@@ -441,7 +454,7 @@ export struct RealtimePage {
             InfoCard({
               title: '报警状态',
               value: this.current.alarm === 1 ? (this.current.alarmType.length > 0 ? this.current.alarmType : '报警中') : '正常',
-              icon: '🚨',
+              icon: 'warning',
               subtitle: this.current.alarm === 1 ? '设备已触发报警' : '无报警',
               accent: this.current.alarm === 1 ? Theme.DANGER : Theme.OK
             })
@@ -451,7 +464,7 @@ export struct RealtimePage {
             InfoCard({
               title: '设备状态',
               value: this.statusText(),
-              icon: '📶',
+              icon: 'signal',
               subtitle: this.current.serverTs > 0
                 ? `最近上报 ${DateUtil.time(this.current.serverTs)}`
                 : (this.lastUpdate > 0 ? `最后拉取 ${DateUtil.time(this.lastUpdate)}` : '等待数据...'),
@@ -464,38 +477,55 @@ export struct RealtimePage {
         // SOS 醒目提示
         if (this.current.sos === 1) {
           Row() {
-            Text('🆘')
-              .fontSize(24)
+            Stack() {
+              AppIcon({ name: 'sos', size: 19, color: '#FFFFFF', weight: 1.9 })
+            }
+            .width(34)
+            .height(34)
+            .borderRadius(11)
+            .backgroundColor(Theme.alpha('#FFFFFF', 0.16))
+
             Text('检测到紧急求助信号，请立即处理！')
               .fontSize(15)
               .fontColor('#FFFFFF')
               .fontWeight(FontWeight.Bold)
-              .margin({ left: 8 })
+              .margin({ left: 10 })
+              .layoutWeight(1)
           }
           .width('100%')
-          .padding(16)
+          .padding(15)
           .backgroundColor(Theme.DANGER)
-          .borderRadius(14)
+          .borderRadius(16)
+          .shadow({ radius: 16, color: Theme.alpha(Theme.DANGER, 0.24), offsetX: 0, offsetY: 6 })
+          .alignItems(VerticalAlign.Center)
         }
 
         // 报警醒目提示
         if (this.current.alarm === 1) {
           Row() {
-            Text('🚨')
-              .fontSize(22)
+            Stack() {
+              AppIcon({ name: 'warning', size: 19, color: '#FFFFFF', weight: 1.9 })
+            }
+            .width(34)
+            .height(34)
+            .borderRadius(11)
+            .backgroundColor(Theme.alpha('#FFFFFF', 0.16))
+
             Text(this.current.alarmType.length > 0
               ? `设备报警：${this.current.alarmType}`
               : '设备报警，请立即处理！')
               .fontSize(15)
               .fontColor('#FFFFFF')
               .fontWeight(FontWeight.Bold)
-              .margin({ left: 8 })
+              .margin({ left: 10 })
               .layoutWeight(1)
           }
           .width('100%')
-          .padding(16)
+          .padding(15)
           .backgroundColor(Theme.DANGER)
-          .borderRadius(14)
+          .borderRadius(16)
+          .shadow({ radius: 16, color: Theme.alpha(Theme.DANGER, 0.24), offsetX: 0, offsetY: 6 })
+          .alignItems(VerticalAlign.Center)
         }
 
         // 最近上报历史
@@ -527,7 +557,9 @@ export struct RealtimePage {
         .width('100%')
         .padding(14)
         .backgroundColor(Theme.CARD)
-        .borderRadius(14)
+        .borderRadius(16)
+        .border({ width: 1, color: Theme.HAIRLINE })
+        .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
         .alignItems(HorizontalAlign.Start)
       }
       .padding(16)

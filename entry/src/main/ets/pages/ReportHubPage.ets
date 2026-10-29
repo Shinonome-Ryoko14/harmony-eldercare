@@ -15,10 +15,17 @@ export struct ReportHubPage {
   segment(index: number, label: string) {
     Text(label)
       .fontSize(13)
-      .fontColor(this.tab === index ? '#FFFFFF' : Theme.SUB)
-      .backgroundColor(this.tab === index ? Theme.PRIMARY : Theme.CARD)
-      .padding({ left: 14, right: 14, top: 8, bottom: 8 })
-      .borderRadius(16)
+      .fontColor(this.tab === index ? Theme.TEXT : Theme.SUB)
+      .fontWeight(this.tab === index ? FontWeight.Medium : FontWeight.Normal)
+      .backgroundColor(this.tab === index ? Theme.CARD_SOLID : Color.Transparent)
+      .padding({ left: 14, right: 14, top: 7, bottom: 7 })
+      .borderRadius(9)
+      .shadow({
+        radius: this.tab === index ? 6 : 0,
+        color: Theme.SHADOW,
+        offsetX: 0,
+        offsetY: 2
+      })
       .onClick(() => {
         this.tab = index;
       })
@@ -26,9 +33,15 @@ export struct ReportHubPage {
 
   build() {
     Column() {
-      Row({ space: 8 }) {
-        this.segment(0, '今日报告')
-        this.segment(1, '趋势统计')
+      Row() {
+        Row({ space: 2 }) {
+          this.segment(0, '今日报告')
+          this.segment(1, '趋势统计')
+        }
+        .padding(4)
+        .backgroundColor(Theme.CHIP)
+        .borderRadius(12)
+
         Blank()
       }
       .width('100%')
