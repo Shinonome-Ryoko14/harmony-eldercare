@@ -1,4 +1,4 @@
-import { AlertRecord } from '../common/Types';
+import { AlertLevel, AlertRecord } from '../common/Types';
 import { DateUtil } from '../common/Protocol';
 import { Theme } from '../common/Theme';
 import { AppStore } from '../store/AppStore';
@@ -62,7 +62,8 @@ export struct AlertPage {
       let list: AlertRecord[] = await Repository.queryAlerts(deviceNo, 100);
       let pending: number = 0;
       list.forEach((a: AlertRecord) => {
-        if (a.handled === 0) {
+        // 门窗开启等 INFO 级只作提醒，不计入待处置告警
+        if (a.handled === 0 && a.level >= AlertLevel.WARN) {
           pending = pending + 1;
         }
       });
@@ -88,7 +89,32 @@ export struct AlertPage {
     if (level === 1) {
       return Theme.WARN;
     }
-    return Theme.PRIMARY;
+    return Theme.SUB;
+  }
+
+  private isNotice(a: AlertRecord): boolean {
+    return a.level === AlertLevel.INFO;
+  }
+
+  private statusText(a: AlertRecord): string {
+    if (this.isNotice(a)) {
+      return '提醒';
+    }
+    return a.handled === 1 ? '已处置' : '待处置';
+  }
+
+  private statusColor(a: AlertRecord): string {
+    if (this.isNotice(a)) {
+      return Theme.PRIMARY;
+    }
+    return a.handled === 1 ? Theme.OK : Theme.DANGER;
+  }
+
+  private statusBg(a: AlertRecord): string {
+    if (this.isNotice(a)) {
+      return Theme.PRIMARY_SOFT;
+    }
+    return a.handled === 1 ? Theme.OK_SOFT : Theme.DANGER_SOFT;
   }
 
   private openHandle(a: AlertRecord): void {
@@ -148,11 +174,11 @@ export struct AlertPage {
         }
         .layoutWeight(1)
 
-        Text(a.handled === 1 ? '已处置' : '待处置')
+        Text(this.statusText(a))
           .fontSize(11)
-          .fontColor(a.handled === 1 ? Theme.OK : Theme.DANGER)
+          .fontColor(this.statusColor(a))
           .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-          .backgroundColor(a.handled === 1 ? Theme.OK_SOFT : Theme.DANGER_SOFT)
+          .backgroundColor(this.statusBg(a))
           .borderRadius(8)
       }
       .width('100%')
@@ -170,7 +196,12 @@ export struct AlertPage {
         .width('100%')
         .margin({ top: 6 })
 
-      if (a.handled === 1) {
+      if (this.isNotice(a)) {
+        Text('系统提醒，无需处置')
+          .fontSize(11)
+          .fontColor(Theme.SUB)
+          .margin({ top: 8 })
+      } else if (a.handled === 1) {
         Column() {
           Text(`处置结果：${a.handleResult}`)
             .fontSize(13)

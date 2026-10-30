@@ -8,8 +8,14 @@ export class Constants {
   /** 无活动告警阈值(ms)，默认 2 小时 */
   static readonly INACTIVITY_THRESHOLD: number = 2 * 60 * 60 * 1000;
 
-  /** 门窗持续开启告警阈值(ms)，默认 10 分钟 */
+  /** 门窗持续开启提醒阈值(ms)，默认 10 分钟 */
   static readonly DOOR_OPEN_THRESHOLD: number = 10 * 60 * 1000;
+
+  /** 门窗动作后，多久内失去人体信号才进入外出判断(ms) */
+  static readonly AWAY_DOOR_WINDOW: number = 3 * 60 * 1000;
+
+  /** 连续无人确认外出(ms)，默认 1 分钟 */
+  static readonly AWAY_CONFIRM_TIMEOUT: number = 60 * 1000;
 
   /** 温度上下限(℃) */
   static readonly TEMP_MAX: number = 35;

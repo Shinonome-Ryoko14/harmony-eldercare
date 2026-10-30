@@ -28,6 +28,14 @@ interface RuleState {
   doorAlerted: boolean;
   /** 最近一次“有人/有运动”的时间戳(ms) */
   lastActive: number;
+  /** 最近一次检测到人体存在/运动的时间戳(ms) */
+  lastPresenceTs: number;
+  /** 最近一次门窗开启的时间戳(ms) */
+  doorOpenedTs: number;
+  /** 外出观察开始时间(ms)，0 表示未在观察 */
+  awayCandidateSince: number;
+  /** 本轮外出是否已报警，人员回来后复位 */
+  awayAlerted: boolean;
   lastAlertTs: Map<string, number>;
 }
 
@@ -60,6 +68,10 @@ export class RuleEngine {
         inactivityAlerted: false,
         doorAlerted: false,
         lastActive: 0,
+        lastPresenceTs: 0,
+        doorOpenedTs: 0,
+        awayCandidateSince: 0,
+        awayAlerted: false,
         lastAlertTs: new Map<string, number>()
       };
       this.states.set(deviceNo, s);
@@ -89,6 +101,18 @@ export class RuleEngine {
     };
     let moving: boolean = data.radarMotion === 1;
     let present: boolean = data.radarPresence === 1;
+    let atHome: boolean = moving || present;
+    let wasAtHome: boolean = s.lastPresence === 1 || s.lastMotion === 1;
+
+    // ---- 人体信号：有人则取消外出观察；刚变为无人且最近有门窗动作则进入观察 ----
+    if (atHome) {
+      s.lastPresenceTs = now;
+      s.awayCandidateSince = 0;
+      s.awayAlerted = false;
+    } else if (wasAtHome && s.doorOpenedTs > 0
+      && now - s.doorOpenedTs <= Constants.AWAY_DOOR_WINDOW) {
+      s.awayCandidateSince = now;
+    }
 
     // ---- 活动检测：雷达运动/存在的上升沿记一次活动 ----
     if (moving && s.lastMotion !== 1) {
@@ -103,15 +127,28 @@ export class RuleEngine {
     }
     data.lastActive = s.lastActive;
 
-    // ---- 门窗检测（door1 0→1 开，1→0 关） ----
-    if (s.lastDoor === 0 && data.door === 1) {
+    // ---- 门窗检测（door 已归一化：1 开，0 关；开门只提醒，不报警） ----
+    if (data.door === 1 && s.lastDoor !== 1) {
       result.doorOpened = true;
       s.doorOpenSince = now;
+      s.doorOpenedTs = now;
       s.doorAlerted = false;
-    } else if (s.lastDoor === 1 && data.door === 0) {
+      if (!atHome) {
+        s.awayCandidateSince = now;
+      }
+      result.alerts.push({
+        type: AlertType.DOOR_OPENED,
+        level: AlertLevel.INFO,
+        message: '检测到门窗开启。若老人独自在家，请留意其动向。'
+      });
+    } else if (data.door === 0 && s.lastDoor !== 0) {
       result.doorClosed = true;
       s.doorOpenSince = 0;
       s.doorAlerted = false;
+      if (!atHome && s.doorOpenedTs > 0
+        && now - s.doorOpenedTs <= Constants.AWAY_DOOR_WINDOW) {
+        s.awayCandidateSince = now;
+      }
     }
 
     // ---- SOS 紧急求助（上升沿触发） ----
@@ -200,10 +237,22 @@ export class RuleEngine {
       && !s.doorAlerted) {
       alerts.push({
         type: AlertType.DOOR_OPEN,
-        level: AlertLevel.WARN,
+        level: AlertLevel.INFO,
         message: '门窗已持续开启较长时间，请确认是否关好。'
       });
       s.doorAlerted = true;
+    }
+
+    // 门窗动作 + 人体信号消失 → 判断为可能外出
+    if (s.awayCandidateSince > 0
+      && now - s.awayCandidateSince >= Constants.AWAY_CONFIRM_TIMEOUT
+      && !s.awayAlerted) {
+      alerts.push({
+        type: AlertType.AWAY,
+        level: AlertLevel.CRITICAL,
+        message: '门窗动作后长时间未检测到人体信号，老人可能已外出，请立即联系确认。'
+      });
+      s.awayAlerted = true;
     }
     return alerts;
   }

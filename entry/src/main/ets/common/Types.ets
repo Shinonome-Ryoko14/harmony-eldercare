@@ -58,12 +58,14 @@ export enum AlertType {
   SOS = 'SOS紧急求助',
   ALARM = '设备报警',
   INACTIVITY = '长时间无活动',
+  DOOR_OPENED = '门窗开启提醒',
   DOOR_OPEN = '门窗长时间开启',
   TEMP_HIGH = '温度过高',
   TEMP_LOW = '温度过低',
   HUMI_HIGH = '湿度过高',
   HUMI_LOW = '湿度过低',
-  OFFLINE = '设备离线'
+  OFFLINE = '设备离线',
+  AWAY = '老人可能外出'
 }
 
 /** 告警级别 */
