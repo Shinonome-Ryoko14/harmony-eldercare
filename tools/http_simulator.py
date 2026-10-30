@@ -37,7 +37,7 @@ _state = {
     "humi": 52.0,
     "radar_presence": 0,
     "radar_motion": 0,
-    "door1": 0,
+    "door1": 1,
     "sos": 0,
     "alarm": 0,
     "alarm_type": "",
@@ -93,7 +93,7 @@ def to_wire(rec):
         "humidity": rec["humi"],
         "presence": "有人" if rec["radar_presence"] else "无人",
         "motion": "开" if rec["radar_motion"] else "关",
-        "door": "开" if rec["door1"] else "关",
+        "door": "开" if not rec["door1"] else "关",
         "sos": rec["sos"],
         "alarm_status": rec["alarm"],
         "alarm_msg": rec["alarm_type"],
@@ -134,7 +134,7 @@ PAGE = """<!DOCTYPE html>
 <div class="card">
   <div class="row"><span>温度 (℃)</span><input id="temp" type="number" step="0.1"></div>
   <div class="row"><span>湿度 (%)</span><input id="humi" type="number" step="1"></div>
-  <div class="row"><span>门窗（1 开 / 0 关）</span><button id="door1">-</button></div>
+  <div class="row"><span>门窗（0 开 / 1 关）</span><button id="door1">-</button></div>
   <div class="row"><span>雷达存在（1 有人 / 0 无人）</span><button id="radar_presence">-</button></div>
   <div class="row"><span>雷达运动（1 有 / 0 无）</span><button id="radar_motion">-</button></div>
   <div class="row"><span>SOS（1 求助 / 0 正常）</span><button id="sos">-</button></div>

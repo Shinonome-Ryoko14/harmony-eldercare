@@ -184,10 +184,10 @@ export struct ReportPage {
         if (this.report.today > 0 && this.report.today < this.report.yesterday) {
           Row() {
             Stack() {
-              AppIcon({ name: 'warning', size: 16, color: Theme.WARN })
+              AppIcon({ name: 'warning', iconSize: 18, color: Theme.WARN, weight: 1.8 })
             }
-            .width(30)
-            .height(30)
+            .width(32)
+            .height(32)
             .borderRadius(9)
             .backgroundColor(Theme.CARD)
             Text('今日活动量低于昨日，请关注老人状态，必要时电话问候。')

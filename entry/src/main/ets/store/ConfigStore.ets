@@ -2,6 +2,7 @@ import preferences from '@ohos.data.preferences';
 import { common } from '@kit.AbilityKit';
 import { Constants } from '../common/Constants';
 import { AiConfig } from '../common/AiTypes';
+import { DoorSensorConfig, RoomConfig, RoomSensorConfig } from '../common/Types';
 
 const STORE_NAME: string = 'eldercare_cfg';
 
@@ -22,6 +23,7 @@ export class ConfigStore {
   private static aiKey: string = '';
   private static aiStream: boolean = true;
   private static aiTemperature: number = Constants.AI_DEFAULT_TEMPERATURE;
+  private static rooms: RoomConfig[] = [];
 
   /** 应用启动时调用，加载已保存的配置 */
   static async init(context: common.Context): Promise<void> {
@@ -53,6 +55,43 @@ export class ConfigStore {
       let uv: preferences.ValueType = await store.get('device_url', '');
       if (typeof uv === 'string') {
         ConfigStore.deviceUrl = uv as string;
+      }
+      let rv: preferences.ValueType = await store.get('rooms', '');
+      if (typeof rv === 'string' && (rv as string).length > 0) {
+        try {
+          let arr: RoomConfig[] = JSON.parse(rv as string) as RoomConfig[];
+          ConfigStore.rooms = ConfigStore.normalizeRooms(arr);
+        } catch (e) {
+          console.error(`房间配置解析失败: ${JSON.stringify(e)}`);
+        }
+      }
+      // 旧版扁平门窗配置迁移到「未分组」房间
+      if (ConfigStore.rooms.length === 0) {
+        let sv: preferences.ValueType = await store.get('door_sensors', '');
+        if (typeof sv === 'string' && (sv as string).length > 0) {
+          try {
+            let old: DoorSensorConfig[] = JSON.parse(sv as string) as DoorSensorConfig[];
+            if (old.length > 0) {
+              let sensors: RoomSensorConfig[] = [];
+              for (let i: number = 0; i < old.length; i++) {
+                let item: RoomSensorConfig = {
+                  id: old[i].id,
+                  name: old[i].name,
+                  type: 'door',
+                  deviceNo: old[i].deviceNo
+                };
+                sensors.push(item);
+              }
+              let room: RoomConfig = { id: 'legacy-room', name: '未分组', sensors: sensors };
+              ConfigStore.rooms = [room];
+              await store.put('rooms', JSON.stringify(ConfigStore.rooms));
+              await store.put('door_sensors', '');
+              await store.flush();
+            }
+          } catch (e) {
+            console.error(`旧版门窗配置迁移失败: ${JSON.stringify(e)}`);
+          }
+        }
       }
 
       let ab: preferences.ValueType = await store.get('ai_base_url', Constants.AI_DEFAULT_BASE_URL);
@@ -132,6 +171,55 @@ export class ConfigStore {
       await store.flush();
     } catch (e) {
       console.error(`上报地址保存失败: ${JSON.stringify(e)}`);
+    }
+  }
+
+  // ==================== 房间与门窗传感器 ====================
+
+  private static normalizeRooms(list: RoomConfig[]): RoomConfig[] {
+    let out: RoomConfig[] = [];
+    if (list === null || list === undefined) {
+      return out;
+    }
+    for (let i: number = 0; i < list.length; i++) {
+      let r: RoomConfig = list[i];
+      if (r === null || r === undefined) {
+        continue;
+      }
+      let sensors: RoomSensorConfig[] = [];
+      if (r.sensors !== null && r.sensors !== undefined) {
+        for (let j: number = 0; j < r.sensors.length; j++) {
+          let s: RoomSensorConfig = r.sensors[j];
+          let item: RoomSensorConfig = {
+            id: s.id,
+            name: s.name,
+            type: s.type,
+            deviceNo: s.deviceNo
+          };
+          sensors.push(item);
+        }
+      }
+      let room: RoomConfig = { id: r.id, name: r.name, sensors: sensors };
+      out.push(room);
+    }
+    return out;
+  }
+
+  static getRooms(): RoomConfig[] {
+    return ConfigStore.normalizeRooms(ConfigStore.rooms);
+  }
+
+  static async saveRooms(list: RoomConfig[]): Promise<void> {
+    ConfigStore.rooms = ConfigStore.normalizeRooms(list);
+    let store: preferences.Preferences | null = ConfigStore.store;
+    if (store === null) {
+      return;
+    }
+    try {
+      await store.put('rooms', JSON.stringify(ConfigStore.rooms));
+      await store.flush();
+    } catch (e) {
+      console.error(`房间配置保存失败: ${JSON.stringify(e)}`);
     }
   }
 

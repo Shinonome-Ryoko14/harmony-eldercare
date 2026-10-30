@@ -180,10 +180,10 @@ export struct StatsPage {
         if (this.risk.length > 0) {
           Row() {
             Stack() {
-              AppIcon({ name: 'warning', size: 16, color: Theme.WARN })
+              AppIcon({ name: 'warning', iconSize: 18, color: Theme.WARN, weight: 1.8 })
             }
-            .width(30)
-            .height(30)
+            .width(32)
+            .height(32)
             .borderRadius(9)
             .backgroundColor(Theme.CARD)
             Column() {

@@ -158,6 +158,58 @@ export class Protocol {
     return Protocol.flagValue(Protocol.pick(rec, aliases), def);
   }
 
+  /**
+   * 门窗磁状态归一化。
+   * 硬件口径：0 = 开，1 = 关；APP 内部统一为 1 = 开，0 = 关。
+   * 文本型仍按 open / closed 的真实语义处理，避免二次反转。
+   */
+  private static doorValue(v: Object | undefined): number {
+    if (v === undefined || v === null) {
+      return 0;
+    }
+    if (typeof v === 'number') {
+      return (v as number) !== 0 ? 0 : 1;
+    }
+    if (typeof v === 'boolean') {
+      return (v as boolean) ? 0 : 1;
+    }
+    if (typeof v === 'string') {
+      let s: string = (v as string).trim();
+      if (s.length === 0) {
+        return 0;
+      }
+      let n: number = Number.parseFloat(s);
+      if (!Number.isNaN(n)) {
+        return n !== 0 ? 0 : 1;
+      }
+      let low: string = s.toLowerCase();
+      if (low === 'open' || low === 'opened' || low === 'on' || low === 'true') {
+        return 1;
+      }
+      if (low === 'close' || low === 'closed' || low === 'off' || low === 'false') {
+        return 0;
+      }
+      if (s.indexOf('开') >= 0) {
+        return 1;
+      }
+      if (s.indexOf('关') >= 0) {
+        return 0;
+      }
+      return 0;
+    }
+    if (typeof v === 'object') {
+      let r: Record<string, Object> = v as Record<string, Object>;
+      let keys: string[] = ['value', 'state', 'status', 'active'];
+      for (let i: number = 0; i < keys.length; i++) {
+        let inner: Object | undefined = r[keys[i]];
+        if (inner !== undefined && inner !== null) {
+          return Protocol.doorValue(inner);
+        }
+      }
+    }
+    return 0;
+  }
+
   /** 按候选名取字符串 */
   static strOfAny(rec: Record<string, Object>, aliases: string[], def: string): string {
     let v: Object | undefined = Protocol.pick(rec, aliases);
@@ -230,7 +282,7 @@ export class Protocol {
       humi: Protocol.numOfAny(rec, a['humi'], 0),
       radarPresence: presence,
       radarMotion: motion,
-      door: Protocol.flagOfAny(rec, a['door'], 0),
+      door: Protocol.doorValue(Protocol.pick(rec, a['door'])),
       sos: Protocol.flagOfAny(rec, a['sos'], 0),
       alarm: alarm,
       alarmType: alarmType,

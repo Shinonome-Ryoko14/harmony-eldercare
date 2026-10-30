@@ -1,4 +1,4 @@
-import { DeviceData, LatestRecord } from '../common/Types';
+import { DeviceData, LatestRecord, RoomConfig, RoomSensorConfig } from '../common/Types';
 import { Constants } from '../common/Constants';
 import { DateUtil } from '../common/Protocol';
 import { Theme } from '../common/Theme';
@@ -24,6 +24,19 @@ const EMPTY_DEVICE: DeviceData = {
   online: false
 };
 
+/** 房间内传感器的展示状态 */
+interface SensorView {
+  id: string;
+  roomId: string;
+  name: string;
+  type: string;
+  deviceNo: number;
+  /** -1 表示尚未读取到 */
+  door: number;
+  online: boolean;
+  ts: number;
+}
+
 @Component
 export struct RealtimePage {
   @State current: DeviceData = EMPTY_DEVICE;
@@ -38,6 +51,17 @@ export struct RealtimePage {
   @State lastUpdate: number = 0;
   @State lastRaw: string = '';
   @State revision: number = 0;
+  @State rooms: RoomConfig[] = [];
+  @State sensorViews: SensorView[] = [];
+  @State showAddRoom: boolean = false;
+  @State roomNameInput: string = '';
+  @State showRoomDetail: boolean = false;
+  @State activeRoomId: string = '';
+  @State sensorNameInput: string = '';
+  @State sensorDeviceInput: string = '';
+  @State sensorType: string = 'door';
+  private sensorTimer: number = -1;
+  private sensorFetching: boolean = false;
 
   private listener: StoreListener = () => {
     let store: AppStore = AppStore.get();
@@ -60,10 +84,20 @@ export struct RealtimePage {
     this.hostInput = ConfigStore.getHost();
     this.portInput = `${ConfigStore.getPort()}`;
     this.deviceInput = `${ConfigStore.getDeviceNo()}`;
+    this.rooms = ConfigStore.getRooms();
+    this.sensorViews = this.toSensorViews(this.rooms);
+    this.refreshSensors();
+    this.sensorTimer = setInterval(() => {
+      this.refreshSensors();
+    }, ConfigStore.getPollMs());
   }
 
   aboutToDisappear(): void {
     AppStore.get().unsubscribe(this.listener);
+    if (this.sensorTimer !== -1) {
+      clearInterval(this.sensorTimer);
+      this.sensorTimer = -1;
+    }
   }
 
   private toast(message: string): void {
@@ -72,6 +106,329 @@ export struct RealtimePage {
     } catch (err) {
       console.error(`提示弹出失败: ${JSON.stringify(err)}`);
     }
+  }
+
+  // ---------------- 房间与门窗传感器 ----------------
+
+  private toSensorViews(rooms: RoomConfig[]): SensorView[] {
+    let views: SensorView[] = [];
+    for (let i: number = 0; i < rooms.length; i++) {
+      let room: RoomConfig = rooms[i];
+      for (let j: number = 0; j < room.sensors.length; j++) {
+        let cfg: RoomSensorConfig = room.sensors[j];
+        let old: SensorView | null = null;
+        for (let k: number = 0; k < this.sensorViews.length; k++) {
+          if (this.sensorViews[k].id === cfg.id) {
+            old = this.sensorViews[k];
+          }
+        }
+        let view: SensorView = {
+          id: cfg.id,
+          roomId: room.id,
+          name: cfg.name,
+          type: cfg.type,
+          deviceNo: cfg.deviceNo,
+          door: old !== null ? old.door : -1,
+          online: old !== null ? old.online : false,
+          ts: old !== null ? old.ts : 0
+        };
+        views.push(view);
+      }
+    }
+    return views;
+  }
+
+  private async refreshSensors(): Promise<void> {
+    if (this.sensorFetching || this.sensorViews.length === 0) {
+      return;
+    }
+    this.sensorFetching = true;
+    let current: SensorView[] = this.sensorViews.slice(0, this.sensorViews.length);
+    let next: SensorView[] = [];
+    try {
+      for (let i: number = 0; i < current.length; i++) {
+        let v: SensorView = current[i];
+        let d: DeviceData | null = await HttpService.fetchSensor(v.deviceNo);
+        let row: SensorView = {
+          id: v.id,
+          roomId: v.roomId,
+          name: v.name,
+          type: v.type,
+          deviceNo: v.deviceNo,
+          door: d !== null ? d.door : v.door,
+          online: d !== null,
+          ts: d !== null ? (d.serverTs > 0 ? d.serverTs : Date.now()) : v.ts
+        };
+        next.push(row);
+      }
+      this.sensorViews = next;
+    } finally {
+      this.sensorFetching = false;
+    }
+  }
+
+  private sensorTypeLabel(v: SensorView): string {
+    return v.type === 'window' ? '窗' : '门';
+  }
+
+  private sensorIcon(v: SensorView): string {
+    return v.type === 'window' ? 'window' : 'door';
+  }
+
+  private sensorValue(v: SensorView): string {
+    if (v.door < 0) {
+      return '读取中';
+    }
+    if (!v.online) {
+      return '未连接';
+    }
+    return v.door === 1 ? '开启' : '关闭';
+  }
+
+  private sensorAccent(v: SensorView): string {
+    if (v.door < 0 || !v.online) {
+      return Theme.SUB;
+    }
+    return v.door === 1 ? Theme.WARN : Theme.OK;
+  }
+
+  private sensorSubtitle(v: SensorView): string {
+    let state: string = v.online ? '在线' : (v.door < 0 ? '读取中' : '离线');
+    return `${this.sensorTypeLabel(v)} · 设备号 ${v.deviceNo} · ${state}`;
+  }
+
+  private roomSensorCount(roomId: string): number {
+    let count: number = 0;
+    for (let i: number = 0; i < this.sensorViews.length; i++) {
+      if (this.sensorViews[i].roomId === roomId) {
+        count = count + 1;
+      }
+    }
+    return count;
+  }
+
+  private roomOpenCount(roomId: string): number {
+    let count: number = 0;
+    for (let i: number = 0; i < this.sensorViews.length; i++) {
+      let v: SensorView = this.sensorViews[i];
+      if (v.roomId === roomId && v.online && v.door === 1) {
+        count = count + 1;
+      }
+    }
+    return count;
+  }
+
+  private roomOfflineCount(roomId: string): number {
+    let count: number = 0;
+    for (let i: number = 0; i < this.sensorViews.length; i++) {
+      let v: SensorView = this.sensorViews[i];
+      if (v.roomId === roomId && !v.online) {
+        count = count + 1;
+      }
+    }
+    return count;
+  }
+
+  private roomSubtitle(roomId: string): string {
+    let total: number = this.roomSensorCount(roomId);
+    if (total === 0) {
+      return '点击添加门 / 窗传感器';
+    }
+    let open: number = this.roomOpenCount(roomId);
+    let offline: number = this.roomOfflineCount(roomId);
+    let text: string = `${open} 个开启`;
+    if (offline > 0) {
+      text = `${text} · ${offline} 个离线`;
+    }
+    return text;
+  }
+
+  private roomAccent(roomId: string): string {
+    if (this.roomSensorCount(roomId) === 0) {
+      return Theme.SUB;
+    }
+    if (this.roomOpenCount(roomId) > 0) {
+      return Theme.WARN;
+    }
+    if (this.roomOfflineCount(roomId) > 0) {
+      return Theme.SUB;
+    }
+    return Theme.OK;
+  }
+
+  private activeRoom(): RoomConfig | null {
+    for (let i: number = 0; i < this.rooms.length; i++) {
+      if (this.rooms[i].id === this.activeRoomId) {
+        return this.rooms[i];
+      }
+    }
+    return null;
+  }
+
+  private activeRoomName(): string {
+    let room: RoomConfig | null = this.activeRoom();
+    return room !== null ? room.name : '房间';
+  }
+
+  private activeRoomSensors(): SensorView[] {
+    let list: SensorView[] = [];
+    for (let i: number = 0; i < this.sensorViews.length; i++) {
+      if (this.sensorViews[i].roomId === this.activeRoomId) {
+        list.push(this.sensorViews[i]);
+      }
+    }
+    return list;
+  }
+
+  private openAddRoom(): void {
+    this.roomNameInput = '';
+    this.showAddRoom = true;
+  }
+
+  private async addRoom(): Promise<void> {
+    let name: string = this.roomNameInput.trim();
+    if (name.length === 0) {
+      this.toast('请输入房间名称');
+      return;
+    }
+    for (let i: number = 0; i < this.rooms.length; i++) {
+      if (this.rooms[i].name === name) {
+        this.toast('房间名称已存在');
+        return;
+      }
+    }
+    let room: RoomConfig = { id: `${Date.now()}`, name: name, sensors: [] };
+    let list: RoomConfig[] = this.rooms.concat([room]);
+    await ConfigStore.saveRooms(list);
+    this.rooms = list;
+    this.showAddRoom = false;
+    this.activeRoomId = room.id;
+    this.sensorNameInput = '';
+    this.sensorDeviceInput = '';
+    this.sensorType = 'door';
+    this.showRoomDetail = true;
+    this.toast('房间已创建，可以添加传感器了');
+  }
+
+  private openRoom(roomId: string): void {
+    this.activeRoomId = roomId;
+    this.sensorNameInput = '';
+    this.sensorDeviceInput = '';
+    this.sensorType = 'door';
+    this.showRoomDetail = true;
+  }
+
+  private async addSensor(): Promise<void> {
+    let room: RoomConfig | null = this.activeRoom();
+    if (room === null) {
+      return;
+    }
+    let type: string = this.sensorType === 'window' ? 'window' : 'door';
+    let name: string = this.sensorNameInput.trim();
+    if (name.length === 0) {
+      name = type === 'window' ? '窗传感器' : '门传感器';
+      if (this.sensorNameExists(room, name)) {
+        name = `${name} ${room.sensors.length + 1}`;
+      }
+    }
+    if (this.sensorNameExists(room, name)) {
+      this.toast('该房间已有同名传感器');
+      return;
+    }
+    let no: number = Number.parseInt(this.sensorDeviceInput.trim());
+    if (Number.isNaN(no) || no < 0) {
+      this.toast('设备号需为 0 或正整数');
+      return;
+    }
+    if (no === ConfigStore.getDeviceNo()) {
+      this.toast('该设备号已被当前主机使用');
+      return;
+    }
+    if (this.deviceNoExists(no)) {
+      this.toast('该设备号已添加');
+      return;
+    }
+    let cfg: RoomSensorConfig = {
+      id: `${Date.now()}`,
+      name: name,
+      type: type,
+      deviceNo: no
+    };
+    let list: RoomConfig[] = [];
+    for (let i: number = 0; i < this.rooms.length; i++) {
+      let r: RoomConfig = this.rooms[i];
+      if (r.id === room.id) {
+        list.push({ id: r.id, name: r.name, sensors: r.sensors.concat([cfg]) });
+      } else {
+        list.push(r);
+      }
+    }
+    await ConfigStore.saveRooms(list);
+    this.rooms = list;
+    this.sensorViews = this.toSensorViews(list);
+    this.sensorNameInput = '';
+    this.sensorDeviceInput = '';
+    this.toast('传感器已添加，正在读取状态...');
+    await this.refreshSensors();
+  }
+
+  private sensorNameExists(room: RoomConfig, name: string): boolean {
+    for (let i: number = 0; i < room.sensors.length; i++) {
+      if (room.sensors[i].name === name) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private deviceNoExists(deviceNo: number): boolean {
+    for (let i: number = 0; i < this.rooms.length; i++) {
+      for (let j: number = 0; j < this.rooms[i].sensors.length; j++) {
+        if (this.rooms[i].sensors[j].deviceNo === deviceNo) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private async removeSensor(roomId: string, sensorId: string): Promise<void> {
+    let list: RoomConfig[] = [];
+    for (let i: number = 0; i < this.rooms.length; i++) {
+      let r: RoomConfig = this.rooms[i];
+      if (r.id !== roomId) {
+        list.push(r);
+        continue;
+      }
+      let sensors: RoomSensorConfig[] = [];
+      for (let j: number = 0; j < r.sensors.length; j++) {
+        if (r.sensors[j].id !== sensorId) {
+          sensors.push(r.sensors[j]);
+        }
+      }
+      list.push({ id: r.id, name: r.name, sensors: sensors });
+    }
+    await ConfigStore.saveRooms(list);
+    this.rooms = list;
+    this.sensorViews = this.toSensorViews(list);
+    this.toast('传感器已移除');
+  }
+
+  private async removeRoom(roomId: string): Promise<void> {
+    let list: RoomConfig[] = [];
+    for (let i: number = 0; i < this.rooms.length; i++) {
+      if (this.rooms[i].id !== roomId) {
+        list.push(this.rooms[i]);
+      }
+    }
+    await ConfigStore.saveRooms(list);
+    this.rooms = list;
+    this.sensorViews = this.toSensorViews(list);
+    if (this.activeRoomId === roomId) {
+      this.activeRoomId = '';
+      this.showRoomDetail = false;
+    }
+    this.toast('房间已删除');
   }
 
   private tempAccent(): string {
@@ -345,9 +702,360 @@ export struct RealtimePage {
     .alignItems(VerticalAlign.Center)
   }
 
-  build() {
-    Scroll() {
+  @Builder
+  roomCard(room: RoomConfig) {
+    Column() {
+      Row() {
+        Stack() {
+          AppIcon({ name: 'home', iconSize: 18, color: this.roomAccent(room.id), weight: 1.8 })
+        }
+        .width(32)
+        .height(32)
+        .borderRadius(10)
+        .backgroundColor(Theme.alpha(this.roomAccent(room.id), 0.10))
+
+        Text(room.name)
+          .fontSize(13)
+          .fontColor(Theme.SUB)
+          .layoutWeight(1)
+          .margin({ left: 9, right: 4 })
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+        AppIcon({ name: 'chevron', iconSize: 14, color: Theme.SUB })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      Row() {
+        Text(`${this.roomSensorCount(room.id)}`)
+          .fontSize(26)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.roomAccent(room.id))
+        Text('个传感器')
+          .fontSize(11)
+          .fontColor(Theme.SUB)
+          .margin({ left: 3, bottom: 4 })
+      }
+      .width('100%')
+      .margin({ top: 10 })
+      .alignItems(VerticalAlign.Bottom)
+
+      Text(this.roomSubtitle(room.id))
+        .fontSize(11)
+        .fontColor(Theme.SUB)
+        .width('100%')
+        .margin({ top: 5 })
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .width('100%')
+    .padding(14)
+    .backgroundColor(Theme.CARD)
+    .borderRadius(16)
+    .border({ width: 1, color: Theme.HAIRLINE })
+    .shadow({ radius: 10, color: Theme.SHADOW, offsetX: 0, offsetY: 3 })
+    .alignItems(HorizontalAlign.Start)
+    .onClick(() => {
+      this.openRoom(room.id);
+    })
+  }
+
+  @Builder
+  sensorRow(v: SensorView) {
+    Row() {
+      Stack() {
+        AppIcon({
+          name: this.sensorIcon(v),
+          iconSize: 16,
+          color: this.sensorAccent(v),
+          weight: 1.8
+        })
+      }
+      .width(30)
+      .height(30)
+      .borderRadius(9)
+      .backgroundColor(Theme.alpha(this.sensorAccent(v), 0.10))
+
+      Column({ space: 2 }) {
+        Text(v.name)
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(Theme.TEXT)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(this.sensorSubtitle(v))
+          .fontSize(10)
+          .fontColor(Theme.SUB)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .layoutWeight(1)
+      .margin({ left: 9, right: 6 })
+      .alignItems(HorizontalAlign.Start)
+
+      Text(this.sensorValue(v))
+        .fontSize(13)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(this.sensorAccent(v))
+
+      Stack() {
+        AppIcon({ name: 'close', iconSize: 11, color: Theme.SUB })
+      }
+      .width(22)
+      .height(22)
+      .borderRadius(7)
+      .backgroundColor(Theme.CARD)
+      .margin({ left: 6 })
+      .onClick(() => {
+        this.removeSensor(v.roomId, v.id);
+      })
+    }
+    .width('100%')
+    .padding(10)
+    .backgroundColor(Theme.CHIP)
+    .borderRadius(12)
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  typeChip(type: string, label: string) {
+    Row({ space: 5 }) {
+      AppIcon({
+        name: type === 'window' ? 'window' : 'door',
+        iconSize: 14,
+        color: this.sensorType === type ? Theme.PRIMARY : Theme.SUB,
+        weight: 1.8
+      })
+      Text(label)
+        .fontSize(12)
+        .fontColor(this.sensorType === type ? Theme.PRIMARY : Theme.SUB)
+        .fontWeight(this.sensorType === type ? FontWeight.Medium : FontWeight.Normal)
+    }
+    .padding({ left: 10, right: 10, top: 7, bottom: 7 })
+    .backgroundColor(this.sensorType === type ? Theme.PRIMARY_SOFT : Theme.CHIP)
+    .borderRadius(9)
+    .onClick(() => {
+      this.sensorType = type;
+    })
+  }
+
+  @Builder
+  addRoomDialog() {
+    Column() {
       Column({ space: 12 }) {
+        Row() {
+          Text('添加房间')
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(Theme.TEXT)
+            .layoutWeight(1)
+          Stack() {
+            AppIcon({ name: 'close', iconSize: 14, color: Theme.SUB })
+          }
+          .width(30)
+          .height(30)
+          .borderRadius(9)
+          .backgroundColor(Theme.CHIP)
+          .onClick(() => {
+            this.showAddRoom = false;
+          })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+
+        Text('先创建房间，再进入房间添加门 / 窗传感器，例如「客厅」「阳台」。')
+          .fontSize(12)
+          .fontColor(Theme.SUB)
+          .width('100%')
+          .lineHeight(18)
+
+        Row() {
+          Text('名称')
+            .fontSize(13)
+            .fontColor(Theme.SUB)
+            .width(52)
+          TextInput({ placeholder: '如：客厅', text: this.roomNameInput })
+            .layoutWeight(1)
+            .height(40)
+            .fontSize(14)
+            .backgroundColor(Theme.INPUT)
+            .borderRadius(10)
+            .onChange((val: string) => {
+              this.roomNameInput = val;
+            })
+        }
+        .width('100%')
+
+        Row({ space: 12 }) {
+          Button('取消')
+            .layoutWeight(1)
+            .height(42)
+            .backgroundColor(Theme.CHIP)
+            .fontColor(Theme.TEXT)
+            .borderRadius(11)
+            .onClick(() => {
+              this.showAddRoom = false;
+            })
+          Button('创建')
+            .layoutWeight(1)
+            .height(42)
+            .backgroundColor(Theme.PRIMARY)
+            .borderRadius(11)
+            .onClick(() => {
+              this.addRoom();
+            })
+        }
+        .width('100%')
+        .margin({ top: 4 })
+      }
+      .width('92%')
+      .padding(20)
+      .backgroundColor(Theme.CARD)
+      .borderRadius(22)
+      .border({ width: 1, color: Theme.HAIRLINE })
+      .shadow({ radius: 28, color: Theme.SHADOW_STRONG, offsetX: 0, offsetY: 12 })
+      .alignItems(HorizontalAlign.Start)
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor('rgba(16, 32, 34, 0.32)')
+    .backdropBlur(8)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  @Builder
+  roomDetailDialog() {
+    Column() {
+      Column() {
+        Row() {
+          Column({ space: 2 }) {
+            Text(this.activeRoomName())
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Theme.TEXT)
+            Text(`${this.activeRoomSensors().length} 个门 / 窗传感器`)
+              .fontSize(11)
+              .fontColor(Theme.SUB)
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+
+          Stack() {
+            AppIcon({ name: 'close', iconSize: 14, color: Theme.SUB })
+          }
+          .width(30)
+          .height(30)
+          .borderRadius(9)
+          .backgroundColor(Theme.CHIP)
+          .onClick(() => {
+            this.showRoomDetail = false;
+          })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+
+        Scroll() {
+          Column({ space: 10 }) {
+            if (this.activeRoomSensors().length === 0) {
+              Text('这个房间还没有传感器')
+                .fontSize(12)
+                .fontColor(Theme.SUB)
+                .width('100%')
+                .textAlign(TextAlign.Center)
+                .margin({ top: 16, bottom: 12 })
+            } else {
+              ForEach(this.activeRoomSensors(), (v: SensorView) => {
+                this.sensorRow(v)
+              }, (v: SensorView) => `${v.id}-${v.door}-${v.online ? 1 : 0}`)
+            }
+
+            Divider()
+              .color(Theme.HAIRLINE)
+              .margin({ top: 6, bottom: 2 })
+
+            Text('添加传感器')
+              .fontSize(13)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(Theme.TEXT)
+              .width('100%')
+
+            Row({ space: 8 }) {
+              this.typeChip('door', '门传感器')
+              this.typeChip('window', '窗传感器')
+            }
+            .width('100%')
+
+            TextInput({ placeholder: '名称（选填，如：阳台门）', text: this.sensorNameInput })
+              .width('100%')
+              .height(40)
+              .fontSize(14)
+              .backgroundColor(Theme.INPUT)
+              .borderRadius(10)
+              .onChange((val: string) => {
+                this.sensorNameInput = val;
+              })
+
+            TextInput({ placeholder: '设备号，如：1', text: this.sensorDeviceInput })
+              .width('100%')
+              .height(40)
+              .fontSize(14)
+              .type(InputType.Number)
+              .backgroundColor(Theme.INPUT)
+              .borderRadius(10)
+              .onChange((val: string) => {
+                this.sensorDeviceInput = val;
+              })
+
+            Button('添加到这个房间')
+              .width('100%')
+              .height(42)
+              .fontSize(14)
+              .backgroundColor(Theme.PRIMARY)
+              .borderRadius(11)
+              .onClick(() => {
+                this.addSensor();
+              })
+
+            Text('删除房间')
+              .fontSize(12)
+              .fontColor(Theme.DANGER)
+              .width('100%')
+              .textAlign(TextAlign.Center)
+              .padding({ top: 6, bottom: 4 })
+              .onClick(() => {
+                this.removeRoom(this.activeRoomId);
+              })
+          }
+          .width('100%')
+          .padding({ top: 12 })
+        }
+        .layoutWeight(1)
+        .width('100%')
+        .scrollBar(BarState.Off)
+      }
+      .width('92%')
+      .height('82%')
+      .padding(18)
+      .backgroundColor(Theme.CARD)
+      .borderRadius(22)
+      .border({ width: 1, color: Theme.HAIRLINE })
+      .shadow({ radius: 28, color: Theme.SHADOW_STRONG, offsetX: 0, offsetY: 12 })
+      .alignItems(HorizontalAlign.Start)
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor('rgba(16, 32, 34, 0.32)')
+    .backdropBlur(8)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  build() {
+    Stack() {
+      Scroll() {
+        Column({ space: 12 }) {
         // 顶部状态
         Row() {
           Column() {
@@ -471,6 +1179,62 @@ export struct RealtimePage {
               accent: this.current.online ? Theme.OK : Theme.DANGER
             })
           }.width('48%').margin({ bottom: 12 })
+
+          Row() {
+            Text('房间')
+              .fontSize(15)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(Theme.TEXT)
+            Text('门 / 窗传感器')
+              .fontSize(11)
+              .fontColor(Theme.SUB)
+              .margin({ left: 6 })
+          }
+          .width('100%')
+          .margin({ top: 2, bottom: 2 })
+          .alignItems(VerticalAlign.Bottom)
+
+          ForEach(this.rooms, (room: RoomConfig) => {
+            Column() {
+              this.roomCard(room)
+            }
+            .width('48%')
+            .margin({ bottom: 12 })
+          }, (room: RoomConfig) => `${room.id}-${this.roomSensorCount(room.id)}-${this.roomOpenCount(room.id)}`)
+
+          Row() {
+            Stack() {
+              AppIcon({ name: 'plus', iconSize: 20, color: Theme.PRIMARY })
+            }
+            .width(36)
+            .height(36)
+            .borderRadius(11)
+            .backgroundColor(Theme.PRIMARY_SOFT)
+
+            Column({ space: 3 }) {
+              Text('添加房间')
+                .fontSize(14)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(Theme.TEXT)
+              Text('按房间管理门 / 窗传感器')
+                .fontSize(11)
+                .fontColor(Theme.SUB)
+            }
+            .layoutWeight(1)
+            .margin({ left: 10 })
+            .alignItems(HorizontalAlign.Start)
+
+            AppIcon({ name: 'chevron', iconSize: 16, color: Theme.SUB })
+          }
+          .width('100%')
+          .padding(16)
+          .backgroundColor(Theme.CARD)
+          .borderRadius(16)
+          .border({ width: 1, color: Theme.BORDER, style: BorderStyle.Dashed })
+          .alignItems(VerticalAlign.Center)
+          .onClick(() => {
+            this.openAddRoom();
+          })
         }
         .width('100%')
 
@@ -478,10 +1242,10 @@ export struct RealtimePage {
         if (this.current.sos === 1) {
           Row() {
             Stack() {
-              AppIcon({ name: 'sos', size: 19, color: '#FFFFFF', weight: 1.9 })
+              AppIcon({ name: 'sos', iconSize: 21, color: '#FFFFFF', weight: 1.9 })
             }
-            .width(34)
-            .height(34)
+            .width(36)
+            .height(36)
             .borderRadius(11)
             .backgroundColor(Theme.alpha('#FFFFFF', 0.16))
 
@@ -504,10 +1268,10 @@ export struct RealtimePage {
         if (this.current.alarm === 1) {
           Row() {
             Stack() {
-              AppIcon({ name: 'warning', size: 19, color: '#FFFFFF', weight: 1.9 })
+              AppIcon({ name: 'warning', iconSize: 21, color: '#FFFFFF', weight: 1.9 })
             }
-            .width(34)
-            .height(34)
+            .width(36)
+            .height(36)
             .borderRadius(11)
             .backgroundColor(Theme.alpha('#FFFFFF', 0.16))
 
@@ -568,5 +1332,17 @@ export struct RealtimePage {
     .backgroundColor(Theme.BG)
     .width('100%')
     .height('100%')
+
+      if (this.showAddRoom) {
+        this.addRoomDialog()
+      }
+
+      if (this.showRoomDetail) {
+        this.roomDetailDialog()
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor(Theme.BG)
   }
 }

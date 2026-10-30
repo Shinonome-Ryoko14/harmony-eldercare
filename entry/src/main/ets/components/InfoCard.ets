@@ -16,13 +16,13 @@ export struct InfoCard {
       Row() {
         if (this.icon.length > 0) {
           Stack() {
-            AppIcon({ name: this.icon, size: 14, color: this.accent, weight: 1.8 })
+            AppIcon({ name: this.icon, iconSize: 18, color: this.accent, weight: 1.8 })
           }
-          .width(26)
-          .height(26)
-          .borderRadius(9)
+          .width(32)
+          .height(32)
+          .borderRadius(10)
           .backgroundColor(Theme.alpha(this.accent, 0.10))
-          .margin({ right: 7 })
+          .margin({ right: 9 })
         }
         Text(this.title)
           .fontSize(13)
@@ -60,9 +60,9 @@ export struct InfoCard {
     }
     .padding(14)
     .backgroundColor(Theme.CARD)
-    .borderRadius(18)
+    .borderRadius(16)
     .border({ width: 1, color: Theme.HAIRLINE })
-    .shadow({ radius: 14, color: Theme.SHADOW, offsetX: 0, offsetY: 4 })
+    .shadow({ radius: 10, color: Theme.SHADOW, offsetX: 0, offsetY: 3 })
     .width('100%')
     .alignItems(HorizontalAlign.Start)
   }

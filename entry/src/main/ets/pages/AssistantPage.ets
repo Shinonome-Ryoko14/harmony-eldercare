@@ -608,10 +608,10 @@ export struct AssistantPage {
           this.clearChat();
         })
       Stack() {
-        AppIcon({ name: 'settings', size: 17, color: Theme.TEXT })
+        AppIcon({ name: 'settings', iconSize: 19, color: Theme.TEXT, weight: 1.8 })
       }
-      .width(34)
-      .height(34)
+      .width(36)
+      .height(36)
       .borderRadius(11)
       .backgroundColor(Theme.CHIP)
       .margin({ left: 2 })
@@ -637,7 +637,7 @@ export struct AssistantPage {
               angle: 145,
               colors: [[Theme.PRIMARY_SOFT, 0.0], [Theme.alpha(Theme.PRIMARY, 0.16), 1.0]]
             })
-          AppIcon({ name: 'ai', size: 34, color: Theme.PRIMARY, weight: 1.5 })
+          AppIcon({ name: 'ai', iconSize: 36, color: Theme.PRIMARY, weight: 1.5 })
         }
         .width(82)
         .height(82)
@@ -655,10 +655,10 @@ export struct AssistantPage {
 
         Row({ space: 8 }) {
           Stack() {
-            AppIcon({ name: 'signal', size: 13, color: Theme.PRIMARY })
+            AppIcon({ name: 'signal', iconSize: 15, color: Theme.PRIMARY, weight: 1.8 })
           }
-          .width(24)
-          .height(24)
+          .width(26)
+          .height(26)
           .borderRadius(8)
           .backgroundColor(Theme.PRIMARY_SOFT)
           Text(this.liveSummary)
@@ -734,7 +734,7 @@ export struct AssistantPage {
         .alignItems(HorizontalAlign.Start)
 
         Row() {
-          AppIcon({ name: 'doc', size: 14, color: Theme.PRIMARY_DARK })
+          AppIcon({ name: 'doc', iconSize: 16, color: Theme.PRIMARY_DARK, weight: 1.8 })
           Text('生成本地照护简报（无需 Key）')
             .fontSize(13)
             .fontColor(Theme.PRIMARY_DARK)
@@ -769,10 +769,10 @@ export struct AssistantPage {
     Row() {
       if (m.role === 'assistant') {
         Stack() {
-          AppIcon({ name: 'ai', size: 14, color: Theme.PRIMARY })
+          AppIcon({ name: 'ai', iconSize: 16, color: Theme.PRIMARY, weight: 1.8 })
         }
-        .width(26)
-        .height(26)
+        .width(28)
+        .height(28)
         .borderRadius(9)
         .backgroundColor(Theme.PRIMARY_SOFT)
         .margin({ right: 8, top: 2 })
@@ -795,7 +795,7 @@ export struct AssistantPage {
         if (m.role === 'assistant' && !m.streaming) {
           Row({ space: 14 }) {
             Row() {
-              AppIcon({ name: 'copy', size: 11, color: Theme.SUB })
+              AppIcon({ name: 'copy', iconSize: 13, color: Theme.SUB })
               Text('复制')
                 .fontSize(11)
                 .fontColor(Theme.SUB)
@@ -807,7 +807,7 @@ export struct AssistantPage {
 
             if (m.error) {
               Row() {
-                AppIcon({ name: 'retry', size: 11, color: Theme.PRIMARY })
+                AppIcon({ name: 'retry', iconSize: 13, color: Theme.PRIMARY })
                 Text('重试')
                   .fontSize(11)
                   .fontColor(Theme.PRIMARY)
@@ -818,7 +818,7 @@ export struct AssistantPage {
               })
 
               Row() {
-                AppIcon({ name: 'doc', size: 11, color: Theme.PRIMARY_DARK })
+                AppIcon({ name: 'doc', iconSize: 13, color: Theme.PRIMARY_DARK })
                 Text('本地简报')
                   .fontSize(11)
                   .fontColor(Theme.PRIMARY_DARK)
@@ -830,7 +830,7 @@ export struct AssistantPage {
             }
             if (m.adoptable) {
               Row() {
-                AppIcon({ name: 'check', size: 11, color: Theme.PRIMARY_DARK })
+                AppIcon({ name: 'check', iconSize: 13, color: Theme.PRIMARY_DARK })
                 Text('写入处置记录')
                   .fontSize(11)
                   .fontColor(Theme.PRIMARY_DARK)
@@ -884,7 +884,7 @@ export struct AssistantPage {
         Button({ type: ButtonType.Circle, stateEffect: true }) {
           AppIcon({
             name: this.generating ? 'stop' : 'send',
-            size: 18,
+            iconSize: 19,
             color: '#FFFFFF',
             weight: 1.8,
             filled: this.generating

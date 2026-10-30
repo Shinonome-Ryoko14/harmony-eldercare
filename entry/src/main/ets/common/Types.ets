@@ -9,7 +9,7 @@ export interface DeviceData {
   deviceNo: number;
   temp: number;
   humi: number;
-  /** 门窗磁 door1（0 关 / 1 开） */
+  /** 门窗磁（APP 内部：1 开 / 0 关；解析时已把硬件 0 开 / 1 关 归一化） */
   door: number;
   /** 雷达存在（0 无 / 1 有） */
   radarPresence: number;
@@ -125,3 +125,29 @@ export interface ReportData {
   diff: number;
   hourly: HourStat[];
 }
+
+/** 用户额外添加的门窗（可扩展为其他传感器）配置（旧版扁平结构，仅用于迁移） */
+export interface DoorSensorConfig {
+  id: string;
+  name: string;
+  /** 该传感器对应的设备号，APP 会单独轮询这个 device_no */
+  deviceNo: number;
+}
+
+/** 房间内的单个传感器 */
+export interface RoomSensorConfig {
+  id: string;
+  name: string;
+  /** door / window */
+  type: string;
+  /** 该传感器对应的设备号，APP 会单独轮询这个 device_no */
+  deviceNo: number;
+}
+
+/** 房间：一个房间可以包含多个门 / 窗传感器 */
+export interface RoomConfig {
+  id: string;
+  name: string;
+  sensors: RoomSensorConfig[];
+}
+

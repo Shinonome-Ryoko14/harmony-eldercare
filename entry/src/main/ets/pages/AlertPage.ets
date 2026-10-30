@@ -189,7 +189,7 @@ export struct AlertPage {
         .borderRadius(9)
 
         Row() {
-          AppIcon({ name: 'ai', size: 13, color: Theme.PRIMARY })
+          AppIcon({ name: 'ai', iconSize: 15, color: Theme.PRIMARY, weight: 1.8 })
           Text('让 AI 复盘这条告警')
             .fontSize(12)
             .fontColor(Theme.PRIMARY)

@@ -39,26 +39,26 @@ struct Index {
     Column() {
       Stack() {
         Row()
-          .width(34)
-          .height(24)
-          .borderRadius(9)
+          .width(40)
+          .height(26)
+          .borderRadius(10)
           .backgroundColor(this.currentIndex === index ? Theme.PRIMARY_SOFT : Color.Transparent)
           .animation({ duration: 180, curve: Curve.EaseOut })
         AppIcon({
           name: icon,
-          size: 19,
+          iconSize: 21,
           color: this.currentIndex === index ? Theme.PRIMARY : Theme.SUB,
-          weight: this.currentIndex === index ? 1.9 : 1.6
+          weight: this.currentIndex === index ? 1.9 : 1.7
         })
       }
-      .width(34)
-      .height(24)
+      .width(40)
+      .height(26)
 
       Text(label)
         .fontSize(10)
         .fontColor(this.currentIndex === index ? Theme.PRIMARY : Theme.SUB)
         .fontWeight(this.currentIndex === index ? FontWeight.Medium : FontWeight.Normal)
-        .margin({ top: 3 })
+        .margin({ top: 2 })
     }
     .width('100%')
     .height(56)
@@ -99,8 +99,7 @@ struct Index {
     }
     .barMode(BarMode.Fixed)
     .barHeight(58)
-    .barBackgroundColor('rgba(255, 255, 255, 0.82)')
-    .barBackgroundBlurStyle(BlurStyle.COMPONENT_THICK)
+    .barBackgroundColor(Theme.CARD_SOLID)
     .backgroundColor(Theme.BG)
     .onChange((index: number) => {
       this.currentIndex = index;

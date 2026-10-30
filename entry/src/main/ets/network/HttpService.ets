@@ -175,6 +175,53 @@ export class HttpService {
     }
   }
 
+  /**
+   * 单独拉取某个设备号的最新数据，供用户额外添加的门窗传感器使用。
+   * 不写全局 AppStore、不触发告警，失败返回 null。
+   */
+  static async fetchSensor(deviceNo: number): Promise<DeviceData | null> {
+    let url: string = `${ConfigStore.baseUrl()}${Constants.HTTP_API_PATH}?device_no=${deviceNo}&limit=1`;
+    let req: http.HttpRequest = http.createHttp();
+    try {
+      let header: Record<string, string> = { 'Content-Type': 'application/json' };
+      let options: http.HttpRequestOptions = {
+        method: http.RequestMethod.GET,
+        header: header,
+        connectTimeout: 5000,
+        readTimeout: 5000
+      };
+      let resp: http.HttpResponse = await req.request(url, options);
+      if (resp.responseCode !== 200) {
+        return null;
+      }
+      let text: string = typeof resp.result === 'string' ? resp.result as string : '';
+      if (text.length === 0) {
+        return null;
+      }
+      let root: Record<string, Object> = JSON.parse(text) as Record<string, Object>;
+      let payload: Record<string, Object> = HttpService.unwrap(root);
+      let code: number = Protocol.numOf(root, 'code', -1);
+      if (code === -1) {
+        code = Protocol.numOf(payload, 'code', 0);
+      }
+      if (code !== 0) {
+        return null;
+      }
+      let list: LatestRecord[] = HttpService.collect(payload, deviceNo);
+      if (list.length === 0) {
+        return null;
+      }
+      let data: DeviceData = HttpService.toDeviceData(list[list.length - 1]);
+      data.online = true;
+      data.lastSeen = Date.now();
+      return data;
+    } catch (e) {
+      return null;
+    } finally {
+      req.destroy();
+    }
+  }
+
   /** 新记录入库并推导活动/告警；任何一步失败都不影响界面 */
   private async persistNewRecords(list: LatestRecord[], deviceNo: number): Promise<void> {
     if (!RdbHelper.isReady()) {
