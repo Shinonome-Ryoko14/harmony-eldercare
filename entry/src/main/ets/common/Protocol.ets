@@ -160,18 +160,18 @@ export class Protocol {
 
   /**
    * 门窗磁状态归一化。
-   * 硬件口径：0 = 开，1 = 关；APP 内部统一为 1 = 开，0 = 关。
-   * 文本型仍按 open / closed 的真实语义处理，避免二次反转。
+   * 服务端口径：1 = 开，0 = 关；APP 内部统一为 1 = 开，0 = 关（不再反转）。
+   * 文本型按 open / closed 的真实语义处理。
    */
   private static doorValue(v: Object | undefined): number {
     if (v === undefined || v === null) {
       return 0;
     }
     if (typeof v === 'number') {
-      return (v as number) !== 0 ? 0 : 1;
+      return (v as number) !== 0 ? 1 : 0;
     }
     if (typeof v === 'boolean') {
-      return (v as boolean) ? 0 : 1;
+      return (v as boolean) ? 1 : 0;
     }
     if (typeof v === 'string') {
       let s: string = (v as string).trim();
@@ -180,7 +180,7 @@ export class Protocol {
       }
       let n: number = Number.parseFloat(s);
       if (!Number.isNaN(n)) {
-        return n !== 0 ? 0 : 1;
+        return n !== 0 ? 1 : 0;
       }
       let low: string = s.toLowerCase();
       if (low === 'open' || low === 'opened' || low === 'on' || low === 'true') {

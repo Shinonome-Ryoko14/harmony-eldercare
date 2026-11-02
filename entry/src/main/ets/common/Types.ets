@@ -9,7 +9,7 @@ export interface DeviceData {
   deviceNo: number;
   temp: number;
   humi: number;
-  /** 门窗磁（APP 内部：1 开 / 0 关；解析时已把硬件 0 开 / 1 关 归一化） */
+  /** 门窗磁（1 开 / 0 关，与服务端口径一致，不再反转） */
   door: number;
   /** 雷达存在（0 无 / 1 有） */
   radarPresence: number;
