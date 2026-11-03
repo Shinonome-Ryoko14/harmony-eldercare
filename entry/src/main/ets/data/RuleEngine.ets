@@ -127,7 +127,7 @@ export class RuleEngine {
     }
     data.lastActive = s.lastActive;
 
-    // ---- 门窗检测（door 已归一化：1 开，0 关；开门只提醒，不报警） ----
+    // ---- 门窗检测（door 已归一化：0 关，1 开；开门上升沿触发报警） ----
     if (data.door === 1 && s.lastDoor !== 1) {
       result.doorOpened = true;
       s.doorOpenSince = now;
@@ -138,8 +138,8 @@ export class RuleEngine {
       }
       result.alerts.push({
         type: AlertType.DOOR_OPENED,
-        level: AlertLevel.INFO,
-        message: '检测到门窗开启。若老人独自在家，请留意其动向。'
+        level: AlertLevel.WARN,
+        message: '检测到门窗被打开，请确认现场情况。'
       });
     } else if (data.door === 0 && s.lastDoor !== 0) {
       result.doorClosed = true;
@@ -217,7 +217,7 @@ export class RuleEngine {
     return s !== undefined ? s.lastActive : 0;
   }
 
-  /** 周期性检查（无活动、门窗久开） */
+  /** 周期性检查（长时间无活动、门窗动作后可能外出） */
   checkPeriodic(data: DeviceData): AlertDraft[] {
     let now: number = Date.now();
     let s: RuleState = this.stateOf(data.deviceNo);
@@ -233,15 +233,7 @@ export class RuleEngine {
       s.inactivityAlerted = true;
     }
 
-    if (s.doorOpenSince > 0 && now - s.doorOpenSince > Constants.DOOR_OPEN_THRESHOLD
-      && !s.doorAlerted) {
-      alerts.push({
-        type: AlertType.DOOR_OPEN,
-        level: AlertLevel.INFO,
-        message: '门窗已持续开启较长时间，请确认是否关好。'
-      });
-      s.doorAlerted = true;
-    }
+    // 门窗开启已在 process() 中通过上升沿触发报警；这里保留“门窗动作 + 人体信号消失”的外出判断
 
     // 门窗动作 + 人体信号消失 → 判断为可能外出
     if (s.awayCandidateSince > 0

@@ -165,6 +165,13 @@ export class HttpService {
       } catch (e) {
         console.error(`采样处理异常（不影响界面）: ${JSON.stringify(e)}`);
       }
+
+      // ---- 兜底：服务端若只原地更新同一行（id 不变），规则引擎也要能看到开门/报警变化 ----
+      try {
+        await this.processLatestState(display, latest.ts);
+      } catch (e) {
+        console.error(`实时状态规则处理异常（不影响界面）: ${JSON.stringify(e)}`);
+      }
     } catch (e) {
       let err: BusinessError = e as BusinessError;
       let msg: string = err.message !== undefined ? err.message : '未知错误';
@@ -219,6 +226,25 @@ export class HttpService {
       return null;
     } finally {
       req.destroy();
+    }
+  }
+
+  /**
+   * 每次成功拉取都让规则引擎处理一次最新状态。
+   * RuleEngine 内部是“状态上升沿”触发，重复处理同一状态不会重复告警；
+   * 这样即使服务端只原地更新同一条记录（id 不变），开门/关门/报警变化也不会漏掉。
+   */
+  private async processLatestState(data: DeviceData, ts: number): Promise<void> {
+    if (!RdbHelper.isReady()) {
+      return;
+    }
+    let at: number = ts > 0 ? ts : Date.now();
+    let result: RuleResult = RuleEngine.get().process(data);
+    if (result.activityCount > 0) {
+      await Repository.addActivity(data.deviceNo, at, result.activityCount);
+    }
+    for (let j: number = 0; j < result.alerts.length; j++) {
+      await Repository.addAlert(data.deviceNo, result.alerts[j], at);
     }
   }
 

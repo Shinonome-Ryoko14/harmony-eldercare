@@ -7,7 +7,7 @@
   GET /api/device/latest/?device_no=<n>&limit=<m>
       -> {"code":0,"latest":{...},"history":[...]}
   GET /api/state                 -> 当前模拟状态
-  GET /api/set?key=door1&value=1 -> 修改模拟状态（temp/humi/door1/radar_presence/...）
+  GET /api/set?key=door1&value=1 -> 修改模拟状态（temp/humi/door1/radar_presence/...；door1 0 关 / 1 开）
   GET /api/mode?legacy=1         -> 切换“旧字段名 / 时间戳”模式，用于验证 APP 兼容解析
 
 用法：
@@ -93,7 +93,7 @@ def to_wire(rec):
         "humidity": rec["humi"],
         "presence": "有人" if rec["radar_presence"] else "无人",
         "motion": "开" if rec["radar_motion"] else "关",
-        "door": "开" if rec["door1"] else "关",
+        "door": "开" if rec["door1"] == 1 else "关",
         "sos": rec["sos"],
         "alarm_status": rec["alarm"],
         "alarm_msg": rec["alarm_type"],
@@ -134,7 +134,7 @@ PAGE = """<!DOCTYPE html>
 <div class="card">
   <div class="row"><span>温度 (℃)</span><input id="temp" type="number" step="0.1"></div>
   <div class="row"><span>湿度 (%)</span><input id="humi" type="number" step="1"></div>
-  <div class="row"><span>门窗（1 开 / 0 关）</span><button id="door1">-</button></div>
+  <div class="row"><span>门窗（0 关 / 1 开）</span><button id="door1">-</button></div>
   <div class="row"><span>雷达存在（1 有人 / 0 无人）</span><button id="radar_presence">-</button></div>
   <div class="row"><span>雷达运动（1 有 / 0 无）</span><button id="radar_motion">-</button></div>
   <div class="row"><span>SOS（1 求助 / 0 正常）</span><button id="sos">-</button></div>

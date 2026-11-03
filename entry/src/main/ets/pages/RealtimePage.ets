@@ -442,6 +442,63 @@ export struct RealtimePage {
     return this.current.online ? '在线' : '离线';
   }
 
+  private roomNameOf(roomId: string): string {
+    for (let i: number = 0; i < this.rooms.length; i++) {
+      if (this.rooms[i].id === roomId) {
+        return this.rooms[i].name;
+      }
+    }
+    return '';
+  }
+
+  /** 当前有门窗开启的房间名（去重，保持房间顺序） */
+  private openDoorRooms(): string[] {
+    let names: string[] = [];
+    for (let i: number = 0; i < this.sensorViews.length; i++) {
+      let v: SensorView = this.sensorViews[i];
+      if (v.online && v.door === 1) {
+        let name: string = this.roomNameOf(v.roomId);
+        if (name.length > 0 && names.indexOf(name) < 0) {
+          names.push(name);
+        }
+      }
+    }
+    return names;
+  }
+
+  /** 门窗卡片主值：优先显示有门窗开启的房间 */
+  private doorCardValue(): string {
+    if (this.sensorViews.length > 0) {
+      let names: string[] = this.openDoorRooms();
+      if (names.length === 0) {
+        return '全部关闭';
+      }
+      if (names.length <= 2) {
+        return names.join('、');
+      }
+      return `${names[0]} 等 ${names.length} 个房间`;
+    }
+    return this.current.door === 1 ? '开启' : '关闭';
+  }
+
+  private doorCardSubtitle(): string {
+    if (this.sensorViews.length > 0) {
+      let names: string[] = this.openDoorRooms();
+      if (names.length > 0) {
+        return `${names.length} 个房间有门窗开启`;
+      }
+      return '所有房间门窗处于关闭状态';
+    }
+    return this.current.door === 1 ? '请留意门窗是否关好' : '门窗处于关闭状态';
+  }
+
+  private doorCardAccent(): string {
+    if (this.sensorViews.length > 0) {
+      return this.openDoorRooms().length > 0 ? Theme.WARN : Theme.OK;
+    }
+    return this.current.door === 1 ? Theme.WARN : Theme.OK;
+  }
+
   private async saveConfig(): Promise<void> {
     let host: string = this.hostInput.trim();
     if (host.length === 0) {
@@ -1121,10 +1178,10 @@ export struct RealtimePage {
           Column() {
             InfoCard({
               title: '门窗状态',
-              value: this.current.door === 1 ? '开启' : '关闭',
+              value: this.doorCardValue(),
               icon: 'door',
-              subtitle: this.current.door === 1 ? '请留意门窗是否关好' : '门窗处于关闭状态',
-              accent: this.current.door === 1 ? Theme.WARN : Theme.OK
+              subtitle: this.doorCardSubtitle(),
+              accent: this.doorCardAccent()
             })
           }.width('48%').margin({ bottom: 12 })
 

@@ -4,7 +4,7 @@ import { LatestRecord } from './Types';
 /**
  * 服务端报文解析工具。单条记录形如：
  * {"id":168,"device_no":0,"temp":25.4,"humi":52.0,"radar_presence":0,
- *  "radar_motion":0,"door1":0,"sos":0,"alarm":0,"alarm_type":"",
+ *  "radar_motion":0,"door1":1,"sos":0,"alarm":0,"alarm_type":"",
  *  "created_at":"2026-10-13 06:27:57"}
  *
  * 解析采用“候选字段名 + 宽松取值”：
@@ -160,17 +160,18 @@ export class Protocol {
 
   /**
    * 门窗磁状态归一化。
-   * 服务端口径：1 = 开，0 = 关；APP 内部统一为 1 = 开，0 = 关（不再反转）。
-   * 文本型按 open / closed 的真实语义处理。
+   * 服务端口径：0 = 关门，1 = 开门；APP 内部统一为 0 = 关，1 = 开。
+   * 数字 / 数字字符串直接按 0/1 映射；文本型按 open / closed 的真实语义处理。
    */
   private static doorValue(v: Object | undefined): number {
     if (v === undefined || v === null) {
       return 0;
     }
     if (typeof v === 'number') {
-      return (v as number) !== 0 ? 1 : 0;
+      return (v as number) === 1 ? 1 : 0;
     }
     if (typeof v === 'boolean') {
+      // 布尔值通常已经是语义值（true = 开）
       return (v as boolean) ? 1 : 0;
     }
     if (typeof v === 'string') {
@@ -180,7 +181,7 @@ export class Protocol {
       }
       let n: number = Number.parseFloat(s);
       if (!Number.isNaN(n)) {
-        return n !== 0 ? 1 : 0;
+        return n === 1 ? 1 : 0;
       }
       let low: string = s.toLowerCase();
       if (low === 'open' || low === 'opened' || low === 'on' || low === 'true') {
