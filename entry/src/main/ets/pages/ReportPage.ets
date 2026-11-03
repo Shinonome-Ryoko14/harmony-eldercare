@@ -23,13 +23,22 @@ export struct ReportPage {
   @State fetchOk: boolean = false;
   @State fetchMsg: string = '未连接';
   private timer: number = -1;
+  private subscribed: boolean = false;
+  /** 在 aboutToAppear 中赋值，确保箭头函数捕获的是状态管理代理后的 this */
   private listener: StoreListener = () => {
-    this.syncConn();
-    this.reload();
   };
 
   aboutToAppear(): void {
+    if (this.subscribed) {
+      AppStore.get().unsubscribe(this.listener);
+      this.subscribed = false;
+    }
+    this.listener = () => {
+      this.syncConn();
+      this.reload();
+    };
     AppStore.get().subscribe(this.listener);
+    this.subscribed = true;
     this.syncConn();
     this.reload();
     this.timer = setInterval(() => {
@@ -39,7 +48,10 @@ export struct ReportPage {
   }
 
   aboutToDisappear(): void {
-    AppStore.get().unsubscribe(this.listener);
+    if (this.subscribed) {
+      AppStore.get().unsubscribe(this.listener);
+      this.subscribed = false;
+    }
     if (this.timer !== -1) {
       clearInterval(this.timer);
       this.timer = -1;

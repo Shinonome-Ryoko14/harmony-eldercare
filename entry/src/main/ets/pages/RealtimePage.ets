@@ -62,8 +62,13 @@ export struct RealtimePage {
   @State sensorType: string = 'door';
   private sensorTimer: number = -1;
   private sensorFetching: boolean = false;
-
+  private subscribed: boolean = false;
+  /** 在 aboutToAppear 中赋值，确保箭头函数捕获的是状态管理代理后的 this */
   private listener: StoreListener = () => {
+  };
+
+  /** 从全局 Store 同步实时数据；单独抽成普通方法，供订阅回调和定时兜底调用 */
+  private syncFromStore(): void {
     let store: AppStore = AppStore.get();
     let cur: DeviceData | undefined = store.current();
     this.current = cur !== undefined ? cur : EMPTY_DEVICE;
@@ -76,11 +81,21 @@ export struct RealtimePage {
     }
     this.lastRaw = store.getLastRaw();
     this.revision = store.getRevision();
-  };
+  }
 
   aboutToAppear(): void {
+    // 必须在 aboutToAppear 中创建回调，构造函数里的箭头函数会捕获未代理的 this，
+    // 导致回调里修改 @State 时界面不刷新。
+    if (this.subscribed) {
+      AppStore.get().unsubscribe(this.listener);
+      this.subscribed = false;
+    }
+    this.listener = () => {
+      this.syncFromStore();
+    };
     AppStore.get().subscribe(this.listener);
-    this.listener(AppStore.get().getDevices());
+    this.subscribed = true;
+    this.syncFromStore();
     this.hostInput = ConfigStore.getHost();
     this.portInput = `${ConfigStore.getPort()}`;
     this.deviceInput = `${ConfigStore.getDeviceNo()}`;
@@ -88,12 +103,17 @@ export struct RealtimePage {
     this.sensorViews = this.toSensorViews(this.rooms);
     this.refreshSensors();
     this.sensorTimer = setInterval(() => {
+      // 兜底同步一次，避免订阅回调异常时实时卡片停在旧数据
+      this.syncFromStore();
       this.refreshSensors();
     }, ConfigStore.getPollMs());
   }
 
   aboutToDisappear(): void {
-    AppStore.get().unsubscribe(this.listener);
+    if (this.subscribed) {
+      AppStore.get().unsubscribe(this.listener);
+      this.subscribed = false;
+    }
     if (this.sensorTimer !== -1) {
       clearInterval(this.sensorTimer);
       this.sensorTimer = -1;
@@ -466,37 +486,37 @@ export struct RealtimePage {
     return names;
   }
 
-  /** 门窗卡片主值：优先显示有门窗开启的房间 */
+  /** 门窗卡片主值：主设备开启时优先显示开启，否则显示有门窗开启的房间 */
   private doorCardValue(): string {
-    if (this.sensorViews.length > 0) {
-      let names: string[] = this.openDoorRooms();
-      if (names.length === 0) {
-        return '全部关闭';
-      }
-      if (names.length <= 2) {
-        return names.join('、');
-      }
-      return `${names[0]} 等 ${names.length} 个房间`;
+    if (this.current.door === 1) {
+      return '开启';
     }
-    return this.current.door === 1 ? '开启' : '关闭';
+    let names: string[] = this.openDoorRooms();
+    if (names.length === 0) {
+      return this.sensorViews.length > 0 ? '全部关闭' : '关闭';
+    }
+    if (names.length <= 2) {
+      return names.join('、');
+    }
+    return `${names[0]} 等 ${names.length} 个房间`;
   }
 
   private doorCardSubtitle(): string {
+    if (this.current.door === 1) {
+      return '当前设备门窗开启';
+    }
     if (this.sensorViews.length > 0) {
       let names: string[] = this.openDoorRooms();
       if (names.length > 0) {
         return `${names.length} 个房间有门窗开启`;
       }
-      return '所有房间门窗处于关闭状态';
+      return '当前设备及房间门窗均关闭';
     }
-    return this.current.door === 1 ? '请留意门窗是否关好' : '门窗处于关闭状态';
+    return '门窗处于关闭状态';
   }
 
   private doorCardAccent(): string {
-    if (this.sensorViews.length > 0) {
-      return this.openDoorRooms().length > 0 ? Theme.WARN : Theme.OK;
-    }
-    return this.current.door === 1 ? Theme.WARN : Theme.OK;
+    return (this.current.door === 1 || this.openDoorRooms().length > 0) ? Theme.WARN : Theme.OK;
   }
 
   private async saveConfig(): Promise<void> {
